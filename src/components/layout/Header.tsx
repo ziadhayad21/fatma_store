@@ -36,9 +36,11 @@ export function Header({ nav }: { nav: NavItem[] }) {
           <button type="button" className="ib hide-m" aria-label="بحث">
             <Icon name="search" size={21} />
           </button>
-          <button type="button" className="ib hide-m" aria-label="حسابي">
+          {/* Always /admin/login: the login page itself sends a signed-in admin on to /admin, so the header
+              stays fully static (no session read) and the catalog cache is untouched. */}
+          <Link className="ib hide-m" href="/admin/login" prefetch={false} aria-label="حسابي">
             <Icon name="user" size={21} />
-          </button>
+          </Link>
           <button
             type="button"
             className="ib"

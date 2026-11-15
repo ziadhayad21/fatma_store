@@ -25,9 +25,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Send metadata in <head> for every client (no streamed metadata): crawlers and audit tools that read the
-  // initial HTML see title/description immediately. Catalog reads are cached, so this costs nothing measurable.
-  htmlLimitedBots: /.*/,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

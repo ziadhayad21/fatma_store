@@ -121,6 +121,7 @@ npm run lint && npm run typecheck && npm run build
 node scripts/behavior-check.mjs
 node scripts/personalization-check.mjs
 node scripts/edit-flow-check.mjs
+node scripts/pages-check.mjs <base> [serverLog]   # every product/collection page (+ ?edit=…) loads with no console/server errors; header account link
 node scripts/keyboard-check.mjs      # keyboard-only pass (tab order, focus rings, drawers, option cards, fonts, upload)
 node scripts/axe-check.mjs           # axe-core on every storefront page and open drawer, 1440 + 390
 node scripts/lighthouse.mjs          # Lighthouse mobile on home, collection, product, cart, checkout
@@ -166,6 +167,10 @@ Table `rate_limits` + function `hit_rate_limit` (migration `…0400`), used by `
 `src/lib/notifications/index.ts` exports `onOrderPlaced(order)`, called by `placeOrder` **after** the order is saved. Today it does nothing. To add email / WhatsApp / SMS: write a `Notifier` (`{ name, send(order) }`) with the provider's SDK, add it to the `notifiers` array in that file, and add the provider's key as a server environment variable. Each notifier runs in isolation with a 3-second limit and its errors are only logged, so a provider outage can never fail or slow a checkout. `PlacedOrder` carries the customer, address, totals and each line (mode, name text, font). For a design upload, send the admin link `/admin/orders/<id>` rather than the file itself (the file is private).
 
 ## 6. Known gaps / notes
+- Header account icon links to `/admin/login` (the login page sends a signed-in admin on to `/admin`), and the mobile menu has a "تسجيل الدخول" link at the bottom. The header stays static, so the catalog cache is unaffected.
+- Do **not** set `htmlLimitedBots` in `next.config.ts`: together with `generateMetadata` that reads `params` it makes `next dev` throw "Route /products/[slug] did not produce a static shell". Do not add `generateStaticParams` to product/collection pages either: admin edits would then show the old page for one request.
+- `(shop)/layout.tsx` and the home page export `instant = false`: this only silences Next's dev-only "URL data outside of Suspense" insight (it fires although `params` are read inside `<Suspense>`). Production output is unchanged.
+- Never measure performance on a build made with `next build --debug-prerender` (it disables minification).
 - Lighthouse scores `/cart` and `/checkout` at 66 on SEO because they are deliberately `noindex` (and disallowed in `robots.txt`); every indexable page scores 100.
 - The hero video starts on the visitor's first scroll/tap/key (or after 8 s); until then the identical poster frame is shown. This keeps the 1.2 MB video out of the first paint.
 - Orphaned uploads are removed by the daily cleanup job (5.3); upload, newsletter, order and login endpoints are rate limited (5.4).

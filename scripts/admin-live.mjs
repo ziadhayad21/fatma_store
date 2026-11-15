@@ -104,6 +104,14 @@ try {
   check("admin logs in and lands on the dashboard", (await vis("h1").first().textContent())?.includes("الرئيسية"));
   check("dashboard warns about governorates without shipping fees", ((await page.locator(".adm-alert").textContent()) ?? "").includes("27"));
 
+  // header account icon: a real link, signed-in admins go straight to /admin
+  await page.goto(base + "/", { waitUntil: "load" });
+  const acct = page.locator('a[aria-label="حسابي"] >> visible=true').first();
+  check("header account icon is an <a href=/admin/login>", (await acct.getAttribute("href")) === "/admin/login");
+  await acct.click();
+  await page.waitForURL((u) => u.pathname === "/admin", { timeout: 20000 });
+  check("signed-in admin clicking the account icon lands on /admin", page.url().endsWith("/admin"));
+
   // ---------------------------------------------------------------- orders
   await vis('.adm-nav a:has-text("الطلبات")').click();
   await page.waitForURL(/\/admin\/orders/);
@@ -272,6 +280,10 @@ try {
   await page.waitForURL(/\/admin\/login/);
   await page.goto(base + "/admin/orders", { waitUntil: "load" });
   check("after logout the admin area is closed again", page.url().includes("/admin/login"));
+  await page.goto(base + "/", { waitUntil: "load" });
+  await page.locator('a[aria-label="حسابي"] >> visible=true').first().click();
+  await page.waitForURL((u) => u.pathname === "/admin/login", { timeout: 20000 });
+  check("signed-out visitor clicking the account icon lands on the login form", !!(await page.locator('input[name="password"]').count()));
 } finally {
   await browser.close();
   // ---------------------------------------------------------------- cleanup

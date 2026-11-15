@@ -29,6 +29,10 @@ export function MobileMenu({ nav }: { nav: NavItem[] }) {
           </Link>
         ))}
       </nav>
+      <Link className="mm-acct" href="/admin/login" prefetch={false} onClick={closeAll}>
+        <Icon name="user" size={20} />
+        تسجيل الدخول
+      </Link>
     </Drawer>
   );
 }

@@ -10,6 +10,9 @@ import { getCategories, getProducts } from "@/lib/catalog";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
+// dev-only instant-navigation validation opt-out (see (shop)/layout.tsx)
+export const instant = false;
+
 const marquee = ["فوط", "مريلات", "شنط", "باسمك", "بتصميمك"];
 
 export default async function Home() {
