@@ -1,0 +1,43 @@
+{
+  "name": "fatma-website",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify:supabase": "node --env-file=.env.local scripts/verify-supabase.mjs",
+    "db:push": "supabase db push --remote",
+    "db:dry": "supabase db push --remote --dry-run",
+    "db:link": "supabase link",
+    "verify:admin": "node --env-file=.env.local scripts/verify-admin.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@electric-sql/pglite": "^0.5.16",
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "lighthouse": "^13.6.0",
+    "playwright": "^1.65.1",
+    "supabase": "^3.1.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5",
+    "vitest": "^5.1.0"
+  }
+}

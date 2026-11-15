@@ -1,0 +1,9 @@
+fatma-site-kit
+fatma-site-kit.zip
+.env*
+!.env.example
+scripts
+dev.log
+*.log
+.next
+node_modules

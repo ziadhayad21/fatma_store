@@ -1,0 +1,124 @@
+import { createPublicClient } from "@/lib/supabase/public";
+import type { Category, Product, ProductImage, ProductPage, ProductRow } from "@/lib/types";
+import type { CatalogSource, ShippingRate } from "./types";
+
+export type JoinedRow = Omit<ProductRow, "base_price" | "personalization_fee" | "images"> & {
+  base_price: number | string;
+  personalization_fee: number | string;
+  images: ProductImage[] | null;
+  category: { slug: string; name_ar: string; is_active: boolean } | null;
+};
+
+export const PRODUCT_SELECT = "*, category:categories!inner(slug, name_ar, is_active)";
+
+export function toProduct(r: JoinedRow): Product {
+  const { category, ...row } = r;
+  return {
+    ...row,
+    base_price: Number(r.base_price),
+    personalization_fee: Number(r.personalization_fee),
+    images: Array.isArray(r.images) ? r.images : [],
+    category_slug: category?.slug ?? "",
+    category_name: category?.name_ar ?? "",
+  };
+}
+
+function fail(what: string, error: { message: string }): never {
+  throw new Error(`Supabase ${what} failed: ${error.message}`);
+}
+
+/** Public reads through the publishable key — RLS limits everything to active rows. */
+export const supabaseSource: CatalogSource = {
+  async categories() {
+    const { data, error } = await createPublicClient()
+      .from("categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort", { ascending: true });
+    if (error) fail("categories", error);
+    return (data ?? []) as Category[];
+  },
+
+  async category(slug) {
+    const { data, error } = await createPublicClient()
+      .from("categories")
+      .select("*")
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error) fail("category", error);
+    return (data as Category | null) ?? null;
+  },
+
+  async product(slug) {
+    const { data, error } = await createPublicClient()
+      .from("products")
+      .select(PRODUCT_SELECT)
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .eq("category.is_active", true)
+      .maybeSingle();
+    if (error) fail("product", error);
+    return data ? toProduct(data as unknown as JoinedRow) : null;
+  },
+
+  async products(opts = {}) {
+    let q = createPublicClient()
+      .from("products")
+      .select(PRODUCT_SELECT)
+      .eq("is_active", true)
+      .eq("category.is_active", true)
+      .order("sort", { ascending: true });
+    if (opts.limit) q = q.limit(opts.limit);
+    const { data, error } = await q;
+    if (error) fail("products", error);
+    return ((data ?? []) as unknown as JoinedRow[]).map(toProduct);
+  },
+
+  async productPage({ categorySlug, sort, page, pageSize }): Promise<ProductPage> {
+    const run = async (p: number) => {
+      let q = createPublicClient()
+        .from("products")
+        .select(PRODUCT_SELECT, { count: "exact" })
+        .eq("is_active", true)
+        .eq("category.slug", categorySlug)
+        .eq("category.is_active", true);
+      if (sort === "low") q = q.order("base_price", { ascending: true }).order("sort", { ascending: true });
+      else if (sort === "high") q = q.order("base_price", { ascending: false }).order("sort", { ascending: true });
+      else q = q.order("created_at", { ascending: false }).order("sort", { ascending: true });
+      const from = (p - 1) * pageSize;
+      return q.range(from, from + pageSize - 1);
+    };
+
+    let current = Math.max(1, page);
+    let res = await run(current);
+    // out-of-range page (e.g. products were removed): clamp to the last page
+    if (res.error?.code === "PGRST103" || (!res.error && (res.data ?? []).length === 0 && current > 1)) {
+      const total = res.count ?? 0;
+      current = Math.max(1, Math.ceil(total / pageSize));
+      res = await run(current);
+    }
+    if (res.error) fail("collection page", res.error);
+    const total = res.count ?? 0;
+    return {
+      items: ((res.data ?? []) as unknown as JoinedRow[]).map(toProduct),
+      total,
+      page: current,
+      pageCount: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  },
+
+  async related(slug, limit) {
+    const all = await this.products();
+    const me = all.find((p) => p.slug === slug);
+    const others = all.filter((p) => p.slug !== slug);
+    others.sort((a, b) => Number(b.category_id === me?.category_id) - Number(a.category_id === me?.category_id));
+    return others.slice(0, limit);
+  },
+
+  async shippingRates(): Promise<ShippingRate[]> {
+    const { data, error } = await createPublicClient().from("shipping_rates").select("governorate, fee");
+    if (error) fail("shipping rates", error);
+    return (data ?? []).map((r) => ({ governorate: r.governorate as string, fee: r.fee === null ? null : Number(r.fee) }));
+  },
+};
