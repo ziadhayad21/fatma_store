@@ -166,7 +166,16 @@ Table `rate_limits` + function `hit_rate_limit` (migration `…0400`), used by `
 ### 5.5 Order notifications (not built)
 `src/lib/notifications/index.ts` exports `onOrderPlaced(order)`, called by `placeOrder` **after** the order is saved. Today it does nothing. To add email / WhatsApp / SMS: write a `Notifier` (`{ name, send(order) }`) with the provider's SDK, add it to the `notifiers` array in that file, and add the provider's key as a server environment variable. Each notifier runs in isolation with a 3-second limit and its errors are only logged, so a provider outage can never fail or slow a checkout. `PlacedOrder` carries the customer, address, totals and each line (mode, name text, font). For a design upload, send the admin link `/admin/orders/<id>` rather than the file itself (the file is private).
 
-## 6. Known gaps / notes
+## 6. Home page, reviews and category colours
+- Home order: hero, categories, marquee band, reviews, about ("حكايتنا"), footer. Nav / mobile menu / footer link "حكايتنا" to `/#about`.
+- **Reviews** (`public.reviews`, migration `…0500`): real reviews only, entered in **/admin/reviews** (add, edit, show/hide, move up/down, optional "اشترت: <product>", avatar colour). The whole section is hidden until at least **3** are published (`MIN_REVIEWS` in `src/lib/reviews.ts`). Public can read published rows only (RLS); the cached read uses the `reviews` tag, so admin changes show immediately.
+- **Category hover colour**: `categories.accent_color` (colour input in the category form). The tile link turns into a pill of that colour on hover. Defaults: towels #EFE6D6, aprons #F6D6DC, bags #F2C94C.
+- **About copy** lives in `src/lib/site-content.ts` (`ABOUT_PARAGRAPH`, `ABOUT_RING_TEXT`); edit and redeploy.
+- Hand-drawn marks use one component, `src/components/ui/Doodle.tsx` (draws on scroll with `animation-timeline: view()`, static where unsupported or with reduced motion).
+- Below-the-fold sections use `content-visibility: auto`; screenshot tools that capture the full page without scrolling must force it visible (see `scripts/home-live.mjs`).
+- Live check: `node --env-file=.env.local scripts/home-live.mjs http://localhost:3111 shots-home` (adds temporary reviews through the admin, checks the 3-review rule, colours and look, then removes everything).
+
+## 7. Known gaps / notes
 - Header account icon links to `/admin/login` (the login page sends a signed-in admin on to `/admin`), and the mobile menu has a "تسجيل الدخول" link at the bottom. The header stays static, so the catalog cache is unaffected.
 - Do **not** set `htmlLimitedBots` in `next.config.ts`: together with `generateMetadata` that reads `params` it makes `next dev` throw "Route /products/[slug] did not produce a static shell". Do not add `generateStaticParams` to product/collection pages either: admin edits would then show the old page for one request.
 - `(shop)/layout.tsx` and the home page export `instant = false`: this only silences Next's dev-only "URL data outside of Suspense" insight (it fires although `params` are read inside `<Suspense>`). Production output is unchanged.

@@ -37,3 +37,9 @@ export function invalidateCatalog(opts: {
   revalidatePath("/");
   // "catalog" is the flush-everything tag; use updateTag(tags.catalog) for bulk imports
 }
+
+/** After any change to reviews (add / edit / publish / hide / reorder / delete). */
+export function invalidateReviews() {
+  updateTag(tags.reviews);
+  revalidatePath("/");
+}

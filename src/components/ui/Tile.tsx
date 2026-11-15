@@ -13,13 +13,15 @@ type Props = {
   className?: string;
   style?: React.CSSProperties;
   priority?: boolean;
+  /** hover colour of the CTA pill (#RRGGBB), from categories.accent_color */
+  accent?: string;
   /** replaces the default title + CTA caption */
   custom?: React.ReactNode;
 };
 
-export function Tile({ href, src, alt, position = "center", title, cta = "تسوّق", sizes, className, style, priority, custom }: Props) {
+export function Tile({ href, src, alt, position = "center", title, cta = "تسوّق", sizes, className, style, priority, accent, custom }: Props) {
   return (
-    <Link className={`tile${className ? " " + className : ""}`} href={href} style={style}>
+    <Link className={`tile${className ? " " + className : ""}`} href={href} style={accent ? ({ ...style, "--tile-c": accent } as React.CSSProperties) : style}>
       <Image src={src} alt={alt} fill sizes={sizes} priority={priority} style={{ objectPosition: position }} />
       <div className="tile-cap">
         {custom ?? (

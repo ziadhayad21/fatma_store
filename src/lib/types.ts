@@ -15,6 +15,8 @@ export type Category = {
   promo_title_ar: string;
   sort: number;
   is_active: boolean;
+  /** hover colour of the category tile on the home page (#RRGGBB) */
+  accent_color: string;
 };
 
 export type ProductImage = {
@@ -54,4 +56,14 @@ export type ProductPage = {
   total: number;
   page: number;
   pageCount: number;
+};
+
+/** A published customer review (real ones only, entered in the admin). */
+export type Review = {
+  id: string;
+  customer_name: string;
+  text: string;
+  /** name of the product the review is about, when it is set and still visible */
+  product_name: string | null;
+  avatar_color: string | null;
 };

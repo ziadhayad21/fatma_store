@@ -1,4 +1,4 @@
-import type { Category, Product, ProductPage, ProductSort } from "@/lib/types";
+import type { Category, Product, ProductPage, ProductSort, Review } from "@/lib/types";
 
 export type ShippingRate = { governorate: string; fee: number | null };
 
@@ -11,4 +11,6 @@ export interface CatalogSource {
   productPage(opts: { categorySlug: string; sort: ProductSort; page: number; pageSize: number }): Promise<ProductPage>;
   related(slug: string, limit: number): Promise<Product[]>;
   shippingRates(): Promise<ShippingRate[]>;
+  /** published reviews, in display order */
+  reviews(): Promise<Review[]>;
 }

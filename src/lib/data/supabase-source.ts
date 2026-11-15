@@ -1,5 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import type { Category, Product, ProductImage, ProductPage, ProductRow } from "@/lib/types";
+import type { Category, Product, ProductImage, ProductPage, ProductRow, Review } from "@/lib/types";
 import type { CatalogSource, ShippingRate } from "./types";
 
 export type JoinedRow = Omit<ProductRow, "base_price" | "personalization_fee" | "images"> & {
@@ -29,6 +29,31 @@ function fail(what: string, error: { message: string }): never {
 
 /** Public reads through the publishable key — RLS limits everything to active rows. */
 export const supabaseSource: CatalogSource = {
+  async reviews() {
+    const { data, error } = await createPublicClient()
+      .from("reviews")
+      .select("id, customer_name, text, avatar_color, product:products(name_ar)")
+      .eq("is_published", true)
+      .order("sort", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (error) {
+      // a missing/unavailable table must never take the home page down: no reviews = no section
+      console.error("reviews read failed:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => {
+      const product = r.product as { name_ar: string } | { name_ar: string }[] | null;
+      const name = Array.isArray(product) ? product[0]?.name_ar : product?.name_ar;
+      return {
+        id: r.id as string,
+        customer_name: r.customer_name as string,
+        text: r.text as string,
+        avatar_color: (r.avatar_color as string | null) ?? null,
+        product_name: name ?? null,
+      } satisfies Review;
+    });
+  },
+
   async categories() {
     const { data, error } = await createPublicClient()
       .from("categories")

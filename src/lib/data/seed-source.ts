@@ -62,6 +62,10 @@ export const seedSource: CatalogSource = {
     return others.slice(0, limit);
   },
 
+  async reviews() {
+    return []; // never fake reviews: the home page hides the section until real ones are published
+  },
+
   async shippingRates(): Promise<ShippingRate[]> {
     // seed mode: fees unset, exactly like the production seed
     return governorates.map((g) => ({ governorate: g, fee: null }));

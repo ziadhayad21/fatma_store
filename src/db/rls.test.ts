@@ -294,3 +294,51 @@ describe("grant_admin", () => {
     expect((await as("authenticated", CUSTOMER, "select public.grant_admin('customer@example.com')")).code).toBe("42501");
   });
 });
+
+describe("reviews + category accent colour", () => {
+  beforeAll(async () => {
+    await setup(
+      `insert into public.reviews (customer_name, text, is_published, sort) values ('منى', 'حلوة جدا', true, 1), ('سارة', 'مخفية', false, 2)`,
+    );
+  });
+
+  it("anon sees published reviews only and cannot write", async () => {
+    const r = await as<{ customer_name: string }>("anon", null, "select customer_name from public.reviews");
+    expect(r.rows.map((x) => x.customer_name)).toEqual(["منى"]);
+    expect((await as("anon", null, "insert into public.reviews (customer_name, text) values ('x','y')")).code).toBe("42501");
+    expect((await as("anon", null, "update public.reviews set is_published = true")).code).toBe("42501");
+    expect((await as("anon", null, "delete from public.reviews")).code).toBe("42501");
+  });
+
+  it("a signed-in customer (not admin) sees published only and cannot write", async () => {
+    const r = await as("authenticated", CUSTOMER, "select id from public.reviews");
+    expect(r.rows).toHaveLength(1);
+    const ins = await as("authenticated", CUSTOMER, "insert into public.reviews (customer_name, text) values ('x','y')");
+    expect(ins.error).toBeDefined();
+    const upd = await as("authenticated", CUSTOMER, "update public.reviews set is_published = true");
+    expect(upd.affected ?? 0).toBe(0);
+  });
+
+  it("an admin sees everything and can add, edit and delete", async () => {
+    expect((await as("authenticated", ADMIN, "select id from public.reviews")).rows).toHaveLength(2);
+    const ins = await as("authenticated", ADMIN, "insert into public.reviews (customer_name, text, avatar_color) values ('نور','تمام','#F6D6DC') returning id");
+    expect(ins.error).toBeUndefined();
+    expect((await as("authenticated", ADMIN, "update public.reviews set is_published = true where customer_name = 'سارة'")).affected).toBe(1);
+    expect((await as("authenticated", ADMIN, "delete from public.reviews where customer_name = 'سارة'")).affected).toBe(1);
+  });
+
+  it("validates review fields and colours in the database", async () => {
+    const bad = async (sql: string) => (await as("authenticated", ADMIN, sql)).error;
+    expect(await bad("insert into public.reviews (customer_name, text) values ('', 'x')")).toBeDefined();
+    expect(await bad("insert into public.reviews (customer_name, text) values ('x', '')")).toBeDefined();
+    expect(await bad("insert into public.reviews (customer_name, text, avatar_color) values ('x','y','red')")).toBeDefined();
+    expect(await bad("update public.categories set accent_color = 'blue'")).toBeDefined();
+  });
+
+  it("seeds a hover colour per category and lets only admins change it", async () => {
+    const c = await as<{ slug: string; accent_color: string }>("postgres", null, "select slug, accent_color from public.categories order by sort");
+    expect(Object.fromEntries(c.rows.map((r) => [r.slug, r.accent_color]))).toEqual({ towels: "#EFE6D6", aprons: "#F6D6DC", bags: "#F2C94C" });
+    expect((await as("authenticated", ADMIN, "update public.categories set accent_color = '#112233' where slug = 'bags'")).affected).toBe(1);
+    expect((await as("anon", null, "update public.categories set accent_color = '#112233'")).code).toBe("42501");
+  });
+});

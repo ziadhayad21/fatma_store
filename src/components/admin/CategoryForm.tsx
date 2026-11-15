@@ -13,6 +13,7 @@ export type CategoryFormValues = {
   promo_title_ar: string;
   sort: string;
   is_active: boolean;
+  accent_color: string;
   image: ProductImage[];
 };
 
@@ -53,6 +54,14 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
         <span className="lbl">صورة القسم (للمربع في الصفحة الرئيسية والبانر)</span>
         <ImagesField name="images" initial={v.image} max={1} />
         {err("images")}
+      </div>
+      <div className="adm-f">
+        <label htmlFor="accent_color">لون القسم (بيظهر لما الزائر يعدّي على المربع في الرئيسية)</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <input id="accent_color" name="accent_color" type="color" defaultValue={v.accent_color} style={{ width: 56, height: 40, padding: 2 }} aria-invalid={!!e.accent_color} />
+          <span className="adm-hint" dir="ltr">{v.accent_color}</span>
+        </div>
+        {err("accent_color")}
       </div>
       <div className="adm-row">
         <div className="adm-f">

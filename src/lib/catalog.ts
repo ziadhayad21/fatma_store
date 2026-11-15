@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { source } from "./data/source";
 import type { ShippingRate } from "./data/types";
-import type { Category, Product, ProductPage, ProductSort } from "./types";
+import type { Category, Product, ProductPage, ProductSort, Review } from "./types";
 
 /**
  * The ONLY read-access layer for catalog data (categories + products).
@@ -13,6 +13,7 @@ import type { Category, Product, ProductPage, ProductSort } from "./types";
  * Tags:  "catalog"  — everything
  *        "products" — product lists (home, related)
  *        "shipping" — shipping_rates (checkout)
+ *        "reviews" — published customer reviews (home)
  *        "categories" — the category list (nav, footer, chips, home tiles)
  *        "category:<slug>" — one category + the product lists of that category
  *        "product:<slug>" — one product
@@ -25,6 +26,7 @@ export const tags = {
   products: "products",
   categories: "categories",
   shipping: "shipping",
+  reviews: "reviews",
   category: (slug: string) => `category:${slug}`,
   product: (slug: string) => `product:${slug}`,
 };
@@ -83,4 +85,12 @@ export async function getShippingRates(): Promise<ShippingRate[]> {
   cacheLife("catalog");
   cacheTag(tags.catalog, tags.shipping);
   return source.shippingRates();
+}
+
+/** Published customer reviews for the home page (cached; the admin invalidates the "reviews" tag). */
+export async function getReviews(): Promise<Review[]> {
+  "use cache";
+  cacheLife("catalog");
+  cacheTag(tags.catalog, tags.reviews);
+  return source.reviews();
 }

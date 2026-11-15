@@ -84,7 +84,7 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
           {related.map((p) => (
             <ProductCard key={p.slug} product={p} className="rv" sizes="(max-width: 900px) 50vw, 450px" />
           ))}
-          <Link className="more rv" href="/#cats">
+          <Link className="more rv" href="/#categories">
             <span className="eyebrow" style={{ color: "rgba(255,255,255,.7)" }}>فاطمة</span>
             <span style={{ fontSize: 30, lineHeight: 1.25, fontWeight: 500 }}>شوف كل الأقسام</span>
             <Icon name="arrow" size={18} nudge />

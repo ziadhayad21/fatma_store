@@ -107,8 +107,10 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
   const promo_title_ar = txt(formData, "promo_title_ar");
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
+  const accent_color = txt(formData, "accent_color").toUpperCase();
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
+  if (!/^#[0-9A-F]{6}$/.test(accent_color)) errors.accent_color = "اختار لون صحيح.";
   if (name_ar.length < 1 || name_ar.length > 80) errors.name_ar = "اكتب اسم القسم (حتى 80 حرف).";
   if (!SLUG_RE.test(slug) || slug.length > 60) errors.slug = "الرابط بالإنجليزي: حروف صغيرة وأرقام وشرطة.";
   if (description_ar.length > 600) errors.description_ar = "الوصف طويل (حتى 600 حرف).";
@@ -138,6 +140,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
     image_position: first.position,
     sort: sort as number,
     is_active,
+    accent_color,
   };
   const res = isNew
     ? await supabase.from("categories").insert(row).select("id").single()

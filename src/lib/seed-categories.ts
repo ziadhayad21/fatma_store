@@ -13,6 +13,7 @@ export const seedCategories: Category[] = [
     promo_title_ar: "اكتب اسمك على أي فوطة",
     sort: 1,
     is_active: true,
+    accent_color: "#EFE6D6",
   },
   {
     id: "10000000-0000-4000-8000-000000000002",
@@ -25,6 +26,7 @@ export const seedCategories: Category[] = [
     promo_title_ar: "مريلة باسمك… زي Chef Fatma",
     sort: 2,
     is_active: true,
+    accent_color: "#F6D6DC",
   },
   {
     id: "10000000-0000-4000-8000-000000000003",
@@ -37,5 +39,6 @@ export const seedCategories: Category[] = [
     promo_title_ar: "شنطتك، باسمك أنت",
     sort: 3,
     is_active: true,
+    accent_color: "#F2C94C",
   },
 ];

@@ -7,8 +7,8 @@ const START_DELAY_MS = 8000;
 
 /**
  * The poster (a frame of the video) is what the visitor sees first and what counts for LCP.
- * The video itself is attached only after the page has loaded and the visitor interacts (or 8 s pass), so that its download and
- * decoding never compete with the first paint. Visually the hero is identical, the motion starts a moment later.
+ * The video itself is attached only after the page has loaded and the visitor interacts (or 8 s pass), so that its
+ * download and decoding never compete with the first paint. Visually the hero is identical, the motion starts a moment later.
  * Autoplay needs `muted` set as a DOM property (React's attribute isn't enough in some browsers).
  */
 export function HeroVideo() {

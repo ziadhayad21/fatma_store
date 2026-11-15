@@ -7,7 +7,7 @@
   --color-ink: #141414;
   --color-white: #ffffff;
   --color-surface: #f4f2ee;
-  --color-image: #f2f0ec;
+  --color-image: #efeae2;
   --color-panel: #f7f5f2;
   --color-line: #e7e4df;
   --color-line-strong: #d9d5ce;
@@ -26,7 +26,8 @@
   --accent: #c1121f;
   --line: #e7e4df;
   --line-strong: #d9d5ce;
-  --image: #f2f0ec;
+  --image: #efeae2;
+  --page: #faf7f2;
   --muted: #666666;
 }
 
@@ -42,7 +43,7 @@ html {
 
 body {
   margin: 0;
-  background: #fff;
+  background: var(--page);
   color: var(--ink);
   font-family: var(--font-readex), system-ui, sans-serif;
   font-size: 15px;
@@ -196,7 +197,7 @@ img {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.97);
+  background: rgba(250, 247, 242, 0.96);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -617,6 +618,19 @@ img {
   font-weight: 500;
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  transition:
+    background 0.4s,
+    color 0.4s,
+    padding 0.4s,
+    border-color 0.4s;
+}
+/* on hover the link turns into a pill filled with the category colour (--tile-c comes from categories.accent_color) */
+.tile:hover .tile-go {
+  background: var(--tile-c, #efe6d6);
+  color: #141414;
+  padding: 8px 16px;
+  border-color: transparent;
 }
 .tile-go .ic {
   transition: transform 0.35s;
@@ -837,7 +851,9 @@ img {
    Footer
    ------------------------------------------------------------------ */
 .ftr {
-  background: var(--color-surface);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 520px;
+  background: #efe9e0;
   padding: 88px 0 32px;
 }
 .fgrid {

@@ -44,7 +44,7 @@ export function CartDrawer() {
           </span>
           <span style={{ fontSize: 20, fontWeight: 500 }}>سلتك لسه فاضية</span>
           <span className="muted" style={{ fontSize: 14 }}>اختار منتج واطلبه زي ما هو، أو باسمك، أو بتصميمك.</span>
-          <Button href="/#shop" onClick={closeAll}>
+          <Button href="/#categories" onClick={closeAll}>
             تسوّق المنتجات
           </Button>
         </div>

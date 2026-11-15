@@ -51,7 +51,7 @@ export function CartView() {
           </span>
           <h2 style={{ fontSize: 26 }}>سلتك فاضية</h2>
           <p className="muted" style={{ margin: 0 }}>اختار من الفوط والمريلات والشنط — زي ما هي، أو باسمك، أو بتصميمك.</p>
-          <Button href="/#shop">تسوّق المنتجات</Button>
+          <Button href="/#categories">تسوّق المنتجات</Button>
         </div>
       )}
 
@@ -94,7 +94,7 @@ export function CartView() {
                 </div>
               );
             })}
-            <TextLink href="/#shop" style={{ marginTop: 28 }}>كمّل تسوّق</TextLink>
+            <TextLink href="/#categories" style={{ marginTop: 28 }}>كمّل تسوّق</TextLink>
           </div>
 
           <aside className="sum rise d2" aria-label="ملخص الطلب">

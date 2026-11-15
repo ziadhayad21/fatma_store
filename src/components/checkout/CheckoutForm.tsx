@@ -125,7 +125,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
           </span>
           <h2 style={{ fontSize: 26 }}>سلتك فاضية</h2>
           <p className="muted" style={{ margin: 0 }}>ضيف منتج الأول عشان تقدر تكمّل الطلب.</p>
-          <Button href="/#shop">تسوّق المنتجات</Button>
+          <Button href="/#categories">تسوّق المنتجات</Button>
         </div>
       )}
 

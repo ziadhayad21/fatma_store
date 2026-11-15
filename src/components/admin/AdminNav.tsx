@@ -8,6 +8,7 @@ const items = [
   { href: "/admin/orders", label: "الطلبات" },
   { href: "/admin/products", label: "المنتجات" },
   { href: "/admin/categories", label: "الأقسام" },
+  { href: "/admin/reviews", label: "الآراء" },
   { href: "/admin/shipping", label: "الشحن" },
   { href: "/admin/subscribers", label: "المشتركين" },
 ];
