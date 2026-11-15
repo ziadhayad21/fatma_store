@@ -121,6 +121,12 @@ npm run lint && npm run typecheck && npm run build
 node scripts/behavior-check.mjs
 node scripts/personalization-check.mjs
 node scripts/edit-flow-check.mjs
+node scripts/keyboard-check.mjs      # keyboard-only pass (tab order, focus rings, drawers, option cards, fonts, upload)
+node scripts/axe-check.mjs           # axe-core on every storefront page and open drawer, 1440 + 390
+node scripts/lighthouse.mjs          # Lighthouse mobile on home, collection, product, cart, checkout
+# live checks against the real Supabase project (need .env.local):
+node --env-file=.env.local scripts/ratelimit-live.mjs
+node --env-file=.env.local scripts/with-fee.mjs scripts/e2e-live.mjs   # sets a temporary Cairo fee through the admin form
 ```
 
 ## 5. Deploy (Vercel)
@@ -160,6 +166,8 @@ Table `rate_limits` + function `hit_rate_limit` (migration `…0400`), used by `
 `src/lib/notifications/index.ts` exports `onOrderPlaced(order)`, called by `placeOrder` **after** the order is saved. Today it does nothing. To add email / WhatsApp / SMS: write a `Notifier` (`{ name, send(order) }`) with the provider's SDK, add it to the `notifiers` array in that file, and add the provider's key as a server environment variable. Each notifier runs in isolation with a 3-second limit and its errors are only logged, so a provider outage can never fail or slow a checkout. `PlacedOrder` carries the customer, address, totals and each line (mode, name text, font). For a design upload, send the admin link `/admin/orders/<id>` rather than the file itself (the file is private).
 
 ## 6. Known gaps / notes
+- Lighthouse scores `/cart` and `/checkout` at 66 on SEO because they are deliberately `noindex` (and disallowed in `robots.txt`); every indexable page scores 100.
+- The hero video starts on the visitor's first scroll/tap/key (or after 8 s); until then the identical poster frame is shown. This keeps the 1.2 MB video out of the first paint.
 - Orphaned uploads are removed by the daily cleanup job (5.3); upload, newsletter, order and login endpoints are rate limited (5.4).
 - Visual pass: `node --env-file=.env.local scripts/visual-pass.mjs shots-final` screenshots every storefront and admin page at 1440 and 390 and checks overflow, alt text, h1, broken images and request errors (it creates and removes a temporary admin, order and Cairo fee).
 - Supabase clients use `cache: "no-store"` on `fetch`: caching belongs to `use cache` + tags only. (Without it Next.js also kept raw REST responses across builds.)
