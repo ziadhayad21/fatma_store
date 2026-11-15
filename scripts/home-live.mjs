@@ -4,6 +4,7 @@
 // - reviews are added / edited / hidden / reordered through the REAL admin screens (temporary admin user)
 // - the category accent colour is edited in the admin and reaches the home tile (then restored)
 // - screenshots of the home page at 1440 and 390
+// NOTE: it expects NO other published reviews to exist (it checks that the section is hidden at 0-2): delete the sample reviews first.
 // Everything it creates (reviews, temporary admin) is deleted afterwards.
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";

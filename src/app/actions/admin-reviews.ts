@@ -31,7 +31,8 @@ export async function saveReview(_prev: ReviewState, formData: FormData): Promis
   if (sort === null) errors.sort = "رقم غير صحيح.";
   if (Object.keys(errors).length) return { ok: false, message: "راجع الحقول المعلّمة.", fieldErrors: errors };
 
-  const row = { customer_name, text, product_id: product_id || null, avatar_color: avatar_color || null, is_published, sort: sort as number };
+  // saving through the form means the review is now the admin's own: it is no longer a sample
+  const row = { customer_name, text, product_id: product_id || null, avatar_color: avatar_color || null, is_published, sort: sort as number, is_sample: false };
   const res = isNew
     ? await supabase.from("reviews").insert(row).select("id").single()
     : await supabase.from("reviews").update(row).eq("id", id).select("id").single();
@@ -65,6 +66,14 @@ export async function moveReview(formData: FormData): Promise<void> {
   if (i < 0 || j < 0 || j >= ids.length) return;
   [ids[i], ids[j]] = [ids[j], ids[i]];
   await Promise.all(ids.map((rid, n) => supabase.from("reviews").update({ sort: (n + 1) * 10 }).eq("id", rid)));
+  invalidateReviews();
+  redirect("/admin/reviews");
+}
+
+/** Deletes every review marked as a sample (the placeholders); real reviews are never touched. */
+export async function deleteSampleReviews(): Promise<void> {
+  const { supabase } = await requireAdmin();
+  await supabase.from("reviews").delete().eq("is_sample", true);
   invalidateReviews();
   redirect("/admin/reviews");
 }

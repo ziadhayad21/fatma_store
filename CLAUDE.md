@@ -5,8 +5,9 @@
 ## How much to verify
 
 - **Small changes** (copy, links, styling, a single feature): run only `npx eslint .`, `npx tsc --noEmit`, and the ONE check that relates to what you changed (for example `scripts/pages-check.mjs` for header/links/product pages, `scripts/keyboard-check.mjs` for focus/drawers, `npm test` for pure logic).
+- **NEVER run Lighthouse or any performance test (Lighthouse, timing, bundle-size or load tests) unless the user explicitly asks for it in that message: not for big changes, not before a deploy.** This overrides everything below.
 - **Do not** run Lighthouse (`scripts/lighthouse.mjs`) or the full regression set (behavior / personalization / edit-flow / axe / keyboard / visual-pass / admin-live / e2e-live / ratelimit-live) unless the user asks, or right before a deploy.
-- **Before a deploy**: run the full set once against a normal `npm run build` + `next start -p 3111`.
+- **Before a deploy**: run the full functional set once (never the performance tests) against a normal `npm run build` + `next start -p 3111`.
 - Never judge performance on a build made with `next build --debug-prerender`: that flag disables minification and makes Lighthouse look much worse.
 
 ## Standing rules from the user
