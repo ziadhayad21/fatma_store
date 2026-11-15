@@ -29,6 +29,13 @@
   --image: #efeae2;
   --page: #faf7f2;
   --muted: #666666;
+  --color-cream: #fffcf7;
+  --color-navy: #17233d;
+  --color-yellow: #ffb91f;
+  --color-peach: #fff0d9;
+  --color-pink: #f9dedc;
+  --color-sage: #e9ede6;
+  --color-secondary: #858590;
 }
 
 *,
@@ -639,6 +646,43 @@ img {
   transform: translateX(-4px);
 }
 
+/* Department cards */
+.dept-sec {
+  position: relative;
+  overflow: hidden;
+  background: #f4eee5;
+  isolation: isolate;
+}
+.dept-sec::before,
+.dept-sec::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 56% 44% 64% 36% / 42% 58% 42% 58%;
+  pointer-events: none;
+}
+.dept-sec::before { width: 300px; height: 240px; inset: 8% auto auto -100px; background: #ead9c6; opacity: .3; transform: rotate(-22deg); }
+.dept-sec::after { width: 240px; height: 300px; inset: auto -80px 0 auto; background: #f2d9d4; opacity: .32; transform: rotate(24deg); }
+.dept-head { align-items: center; }
+.dept-head .eyebrow { letter-spacing: .12em; text-transform: uppercase; }
+.dept-head .h2 { font-weight: 600; }
+.dept-head .mark { position: relative; white-space: nowrap; }
+.dept-head .dl-underline { color: #c1121f; }
+.dept-all { display: inline-flex; align-items: center; gap: 12px; padding: 11px 20px; border: 1px solid #d9cec1; border-radius: 999px; background: rgba(255,255,255,.68); color: #24201c; font-size: 14px; font-weight: 600; text-decoration: none; transition: background .2s, transform .2s; }
+.dept-all:hover { background: #fff; color: #24201c; transform: translateY(-2px); }
+.dept-all span { font-size: 22px; line-height: .8; }
+.dept-grid { --cols: 3; gap: 24px; }
+.dept-card { aspect-ratio: 3 / 4; border: 1px solid rgba(64,48,34,.12); border-radius: 1rem; box-shadow: 0 12px 30px rgba(69,49,29,.10); isolation: isolate; }
+.dept-card::after { z-index: -1; background: linear-gradient(to top, rgba(15,12,10,.62) 0%, rgba(15,12,10,.08) 43%, transparent 68%); }
+.dept-card img { z-index: -2; }
+.dept-card .tile-cap { inset: 0; padding: 22px; display: block; }
+.dept-badge { position: absolute; top: 18px; right: 18px; padding: 7px 13px; border-radius: 999px; color: #fff; font-size: 11px; line-height: 1; font-weight: 700; letter-spacing: .02em; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.dept-badge-0 { background: #e77f72; }
+.dept-badge-1,.dept-badge-2 { background: #657d5c; }
+.dept-shop { position: absolute; bottom: 22px; left: 22px; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 17px; border-radius: 999px; background: #fff; color: #201b18; font-size: 13px; font-weight: 700; transition: transform .2s, background .2s; }
+.dept-card:hover .dept-shop { transform: translateY(-2px); background: #f6d6dc; }
+.dept-title { position: absolute; right: 22px; bottom: 25px; color: #fff; font-size: clamp(22px,2.5vw,32px); line-height: 1.1; font-weight: 700; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+
 /* ------------------------------------------------------------------
    Drawers (cart = left, menu = right)
    ------------------------------------------------------------------ */
@@ -1074,6 +1118,13 @@ img {
   .g3 {
     gap: 12px !important;
   }
+  .dept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .dept-card .tile-cap { padding: 12px; }
+  .dept-badge { top: 10px; right: 10px; padding: 6px 9px; font-size: 10px; }
+  .dept-shop { left: 10px; bottom: 12px; min-height: 34px; padding: 0 12px; font-size: 12px; }
+  .dept-title { right: 12px; bottom: 16px; font-size: 22px; }
+  .dept-head { align-items: flex-end; gap: 12px; }
+  .dept-all { padding: 9px 13px; font-size: 12px; }
   .qa {
     transform: none;
     height: 40px;

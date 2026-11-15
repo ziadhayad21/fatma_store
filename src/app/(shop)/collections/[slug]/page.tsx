@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { Inter, Poppins } from "next/font/google";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { SortSelect } from "@/components/shop/SortSelect";
 import { Icon } from "@/components/ui/Icon";
 import { Tile } from "@/components/ui/Tile";
 import { getCategories, getCategory, getCollectionPage } from "@/lib/catalog";
 import type { Category, ProductSort } from "@/lib/types";
+
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-inter" });
+const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-poppins" });
 
 export async function generateMetadata({ params }: PageProps<"/collections/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -46,18 +50,19 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
   if (!category) notFound();
 
   return (
-    <>
+    <div className={`collection-page ${inter.variable} ${poppins.variable}`}>
       <section className="wrap col-head">
         <nav className="crumb rise" aria-label="مسار الصفحة">
           <Link href="/">الرئيسية</Link>
           <span aria-hidden="true">/</span>
           <span style={{ color: "var(--ink)" }}>{category.name_ar}</span>
         </nav>
-        <h1 className="rise d1" style={{ fontSize: "clamp(44px, 5.4vw, 76px)", lineHeight: 1.05 }}>{category.name_ar}</h1>
-        <p className="muted rise d2" style={{ margin: 0, fontSize: 16, maxWidth: 520 }}>{category.description_ar}</p>
+        <span className="collection-kicker rise d1">اكتشف مجموعتنا</span>
+        <h1 className="collection-title rise d1">{category.name_ar}</h1>
+        <p className="collection-description rise d2">{category.description_ar}</p>
       </section>
 
-      <section className="wrap">
+      <section className="wrap collection-products">
         {/* searchParams (sort/page) are request-time: only the grid sits behind its own boundary */}
         <Suspense fallback={<GridSkeleton />}>
           <Grid slug={slug} category={category} categories={categories} searchParams={searchParams} />
@@ -65,7 +70,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
       </section>
 
       <OtherCategories current={category.slug} categories={categories} />
-    </>
+    </div>
   );
 }
 
@@ -169,17 +174,15 @@ function OtherCategories({ current, categories }: { current: string; categories:
   return (
     <section className="sec others">
       <div className="wrap">
-        <div className="sh rv">
-          <div>
-            <span className="eyebrow">اكتشف كمان</span>
-            <h2 className="h2">باقي الأقسام</h2>
-          </div>
+        <div className="other-categories-heading rv">
+          <h2 className="collection-title">باقي الأقسام</h2>
+          <span className="collection-kicker">اكتشف كمان</span>
         </div>
-        <div className="g2" style={{ gap: 16 }}>
+        <div className="g2 other-category-grid">
           {others.map((c) => (
             <Tile
               key={c.id}
-              className="rv-clip"
+              className="other-category-card rv-clip"
               href={`/collections/${c.slug}`}
               src={c.image}
               alt=""
