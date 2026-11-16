@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Inter, Poppins } from "next/font/google";
 import { ProductCard } from "@/components/shop/ProductCard";
-import { SortSelect } from "@/components/shop/SortSelect";
+import { CategoryIcon, Rays } from "@/components/ui/CategoryIcon";
 import { Icon } from "@/components/ui/Icon";
-import { Tile } from "@/components/ui/Tile";
 import { getCategories, getCategory, getCollectionPage } from "@/lib/catalog";
 import type { Category, ProductSort } from "@/lib/types";
 
@@ -57,15 +57,23 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
           <span aria-hidden="true">/</span>
           <span style={{ color: "var(--ink)" }}>{category.name_ar}</span>
         </nav>
-        <span className="collection-kicker rise d1">اكتشف مجموعتنا</span>
-        <h1 className="collection-title rise d1">{category.name_ar}</h1>
+        <span className="collection-pill-badge rise d1">اكتشف مجموعتنا</span>
+        <h1 className="collection-title with-rays rise d1">
+          <span className="title-rays left-rays" aria-hidden="true">
+            <Rays />
+          </span>
+          {category.name_ar}
+          <span className="title-rays right-rays" aria-hidden="true">
+            <Rays flip />
+          </span>
+        </h1>
         <p className="collection-description rise d2">{category.description_ar}</p>
       </section>
 
       <section className="wrap collection-products">
         {/* searchParams (sort/page) are request-time: only the grid sits behind its own boundary */}
         <Suspense fallback={<GridSkeleton />}>
-          <Grid slug={slug} category={category} categories={categories} searchParams={searchParams} />
+          <Grid slug={slug} category={category} searchParams={searchParams} />
         </Suspense>
       </section>
 
@@ -77,12 +85,10 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
 async function Grid({
   slug,
   category,
-  categories,
   searchParams,
 }: {
   slug: string;
   category: Category;
-  categories: Category[];
   searchParams: PageProps<"/collections/[slug]">["searchParams"];
 }) {
   const sp = await searchParams;
@@ -101,57 +107,62 @@ async function Grid({
 
   return (
     <>
-      <div className="bar rise d3">
-        <nav aria-label="الأقسام" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {categories.map((c) => (
-            <Link
-              key={c.id}
-              className={`chip${c.slug === slug ? " on" : ""}`}
-              href={`/collections/${c.slug}`}
-              aria-current={c.slug === slug ? "page" : undefined}
-            >
-              {c.name_ar}
-            </Link>
-          ))}
-        </nav>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <span className="muted" style={{ fontSize: 14 }}>
-            {total === 0 ? "مفيش منتجات" : total === 1 ? "منتج واحد" : `${total} منتجات`}
-          </span>
-          <SortSelect value={sort} />
-        </div>
-      </div>
-
       {total === 0 ? (
         <p className="muted" style={{ textAlign: "center", padding: "64px 0" }}>لسه مفيش منتجات في القسم ده.</p>
       ) : (
-        <div className="cgrid">
-          {items.map((p, i) => (
-            <ProductCard key={p.slug} product={p} className="rise d3" priority={i < 3} sizes="(max-width: 900px) 50vw, 450px" />
-          ))}
+        <div className={`cgrid landscape-grid${showPromo ? " has-promo" : ""}`}>
           {showPromo && promoTarget && (
-            <Tile
-              className="promo rise d4"
-              href={`/products/${promoTarget.slug}`}
-              src={category.image}
-              alt={category.image_alt}
-              position={category.image_position}
-              title=""
-              sizes="(max-width: 900px) 100vw, 900px"
-              custom={
-                <>
-                  <span className="eyebrow" style={{ color: "rgba(255,255,255,.85)" }}>التخصيص</span>
-                  <h2 style={{ fontSize: "clamp(28px, 3vw, 44px)", lineHeight: 1.2, maxWidth: 460 }}>
-                    {category.promo_title_ar || "اطلب باسمك أو بتصميمك"}
-                  </h2>
-                  <span className="btn btn-w" style={{ marginTop: 6 }}>
-                    ابدأ التخصيص
-                    <Icon name="arrow" size={18} nudge />
-                  </span>
-                </>
-              }
-            />
+            <div className="dept-landscape-card promo-landscape-card rise d3">
+              <Image
+                src={category.image}
+                alt={category.image_alt}
+                fill
+                sizes="(max-width: 900px) 100vw, 650px"
+                style={{ objectPosition: category.image_position, objectFit: "cover" }}
+              />
+              <div className="card-shade promo-shade" />
+
+              <div className="card-top-badge">
+                <CategoryIcon slug={category.slug} />
+                <span>{category.name_ar}</span>
+              </div>
+
+              <div className="promo-card-body">
+                <div className="promo-rays" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb91f" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M4 14L2 17" />
+                    <path d="M7 9L4 6" />
+                    <path d="M14 6L16 2" />
+                  </svg>
+                </div>
+                <h2 className="promo-card-title">
+                  {category.promo_title_ar || "اطلب باسمك أو بتصميمك"}
+                </h2>
+                <Link href={`/products/${promoTarget.slug}`} className="btn-promo-action">
+                  <span>ابدأ التخصيص</span>
+                  <Icon name="arrow" size={16} nudge />
+                </Link>
+              </div>
+
+              <div className="card-doodle-heart" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </div>
+            </div>
           )}
+          {items.map((p, i) => (
+            <ProductCard
+              key={p.slug}
+              product={p}
+              variant="landscape"
+              categoryName={category.name_ar}
+              categorySlug={category.slug}
+              className="rise d3"
+              priority={i < 3}
+              sizes="(max-width: 900px) 100vw, 650px"
+            />
+          ))}
         </div>
       )}
 
@@ -175,21 +186,51 @@ function OtherCategories({ current, categories }: { current: string; categories:
     <section className="sec others">
       <div className="wrap">
         <div className="other-categories-heading rv">
-          <h2 className="collection-title">باقي الأقسام</h2>
-          <span className="collection-kicker">اكتشف كمان</span>
+          <span className="collection-pill-badge">اكتشف كمان</span>
+          <h2 className="collection-title with-rays">
+            <span className="title-rays left-rays" aria-hidden="true">
+              <Rays />
+            </span>
+            باقي الأقسام
+            <span className="title-rays right-rays" aria-hidden="true">
+              <Rays flip />
+            </span>
+          </h2>
+          <p className="collection-description">اكتشف مجموعاتنا التانية المميزة</p>
         </div>
         <div className="g2 other-category-grid">
           {others.map((c) => (
-            <Tile
-              key={c.id}
-              className="other-category-card rv-clip"
-              href={`/collections/${c.slug}`}
-              src={c.image}
-              alt=""
-              position={c.image_position}
-              title={c.name_ar}
-              sizes="(max-width: 600px) 100vw, 650px"
-            />
+            <div key={c.id} className="dept-landscape-card other-dept-card rv-clip">
+              <Image
+                src={c.image}
+                alt={c.image_alt || c.name_ar}
+                fill
+                sizes="(max-width: 900px) 100vw, 650px"
+                style={{ objectPosition: c.image_position, objectFit: "cover" }}
+              />
+              <div className="card-shade dept-shade" />
+
+              <div className="card-top-badge">
+                <CategoryIcon slug={c.slug} />
+                <span>{c.name_ar}</span>
+              </div>
+
+              <div className="dept-card-bottom-bar">
+                <Link href={`/collections/${c.slug}`} className="btn-shop-now">
+                  <span>تسوّق {c.name_ar}</span>
+                  <Icon name="arrow" size={16} nudge />
+                </Link>
+              </div>
+
+              {c.slug === "bags" && (
+                <div className="card-doodle-sun" aria-hidden="true">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <path d="M24 6V2M24 46V42M6 24H2M46 24H42M11.29 11.29L8.46 8.46M39.54 39.54L36.71 36.71M11.29 36.71L8.46 39.54M39.54 8.46L36.71 11.29" stroke="#ffb91f" strokeWidth="2.5" strokeLinecap="round"/>
+                    <circle cx="24" cy="24" r="10" fill="#ffb91f" opacity="0.9"/>
+                  </svg>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>

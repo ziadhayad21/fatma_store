@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
+import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { formatPrice } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/store/cart";
@@ -15,14 +16,65 @@ type Props = {
   sizes?: string;
   priority?: boolean;
   className?: string;
+  variant?: "standard" | "landscape";
+  categoryName?: string;
+  categorySlug?: string;
 };
 
-export function ProductCard({ product: p, sizes = "(max-width: 900px) 50vw, 33vw", priority, className }: Props) {
+export function ProductCard({
+  product: p,
+  sizes = "(max-width: 900px) 50vw, 33vw",
+  priority,
+  className,
+  variant = "standard",
+  categoryName,
+  categorySlug,
+}: Props) {
   const wished = useWishlist((s) => s.slugs.includes(p.slug));
   const toggleWish = useWishlist((s) => s.toggle);
   const add = useCart((s) => s.add);
   const openCart = useUI((s) => s.openCart);
   const [main, alt] = p.images;
+
+  if (variant === "landscape") {
+    return (
+      <div className={`dept-landscape-card product-landscape-card${className ? " " + className : ""}`}>
+        <Image
+          className="main"
+          src={main.src}
+          alt={main.alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          style={{ objectPosition: main.position, objectFit: "cover" }}
+        />
+        <div className="card-shade product-shade" />
+
+        <div className="card-top-badge">
+          <CategoryIcon slug={categorySlug || p.category_slug} />
+          <span>{categoryName || p.category_name || p.name_ar}</span>
+        </div>
+
+        <button
+          type="button"
+          className={`card-wish-btn${wished ? " on" : ""}`}
+          aria-label={wished ? "إزالة من المفضلة" : "إضافة للمفضلة"}
+          aria-pressed={wished}
+          onClick={() => toggleWish(p.slug)}
+        >
+          <Icon name="heart" size={18} />
+        </button>
+
+        <div className="product-card-bottom-bar">
+          <span className="product-card-price">{formatPrice(p.base_price)}</span>
+          <Link href={`/products/${p.slug}`} className="btn-shop-now">
+            <span>تسوّق الآن</span>
+            <Icon name="arrow" size={16} nudge />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`card${className ? " " + className : ""}`}>
