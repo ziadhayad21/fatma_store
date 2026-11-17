@@ -3,12 +3,12 @@ import { AboutSection } from "@/components/home/AboutSection";
 import { HeroVideo } from "@/components/home/HeroVideo";
 import { Marquee } from "@/components/home/Marquee";
 import { ReviewsSection } from "@/components/home/ReviewsSection";
+import { VideoReelsSection } from "@/components/home/VideoReelsSection";
 import { Button } from "@/components/ui/Button";
 import { Doodle } from "@/components/ui/Doodle";
 import { TextLink } from "@/components/ui/TextLink";
 import { Tile } from "@/components/ui/Tile";
 import { getCategories, getReviews } from "@/lib/catalog";
-import Link from "next/link";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
@@ -64,27 +64,23 @@ export default async function Home() {
                 </span>
               </h2>
             </div>
-            <Link className="dept-all" href="/collections">View All <span aria-hidden="true">›</span></Link>
           </div>
           <div className="tiles dept-grid">
-            {categories.slice(0, 3).map((c, index) => (
+            {categories.map((c) => (
               <Tile
                 key={c.id}
-                className="dept-card rv-clip"
+                className="dept-card"
                 href={`/collections/${c.slug}`}
                 src={c.image}
                 alt={c.image_alt}
                 position={c.image_position}
-                title={({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}
+                title={c.name_ar}
                 accent={c.accent_color}
                 sizes="(max-width: 900px) 100vw, 450px"
                 custom={
                   <>
-                    <span className={`dept-badge dept-badge-${index}`}>
-                      {index === 0 ? "New" : "Best Seller"}
-                    </span>
                     <span className="dept-shop">← Shop</span>
-                    <h3 className="dept-title">{({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}</h3>
+                    <h3 className="dept-title">{c.name_ar}</h3>
                   </>
                 }
               />
@@ -94,6 +90,8 @@ export default async function Home() {
       </section>
 
       <Marquee />
+
+      <VideoReelsSection />
 
       <ReviewsSection reviews={reviews} />
 

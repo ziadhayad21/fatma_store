@@ -10,6 +10,7 @@ const state = {
   existing: new Set<string>([UP]),
   rpcCalls: [] as { name: string; args: { p_order: Record<string, unknown>; p_items: Record<string, unknown>[] } }[],
   rpcError: null as { message: string } | null,
+  discounts: new Map<string, number>(),
 };
 
 function chain(resolve: () => unknown) {
@@ -30,7 +31,7 @@ vi.mock("@/lib/supabase/admin", () => ({
           if (table === "products") {
             const cats = new Map(seedCategories.map((c) => [c.id, c]));
             return {
-              data: seedProducts.map((p) => ({ ...p, category: { slug: cats.get(p.category_id)!.slug, name_ar: cats.get(p.category_id)!.name_ar, is_active: true } })),
+              data: seedProducts.map((p) => ({ ...p, discount_percent: state.discounts.get(p.slug) ?? null, category: { slug: cats.get(p.category_id)!.slug, name_ar: cats.get(p.category_id)!.name_ar, is_active: true } })),
               error: null,
             };
           }
@@ -72,6 +73,7 @@ const place = (o: Record<string, unknown> = {}) =>
 beforeEach(() => {
   state.rpcCalls.length = 0;
   state.rpcError = null;
+  state.discounts.clear();
 });
 
 describe("placeOrder", () => {
@@ -86,11 +88,35 @@ describe("placeOrder", () => {
     expect(r).toMatchObject({ ok: true, number: 1001 });
     const { p_order, p_items } = state.rpcCalls[0].args;
     expect(state.rpcCalls[0].name).toBe("create_order");
-    expect(p_order).toMatchObject({ subtotal: 100 * 2 + 125 * 3 + 125, shipping: 40, total: 700 + 40, payment_method: "cod", phone: "01012345678" });
+    const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
+    const bag = seedProducts.find((p) => p.slug === "polka-dot-bag")!;
+    const namedApron = apron.base_price + apron.personalization_fee;
+    const subtotal = apron.base_price * 2 + namedApron * 3 + bag.base_price + bag.personalization_fee;
+    expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40, payment_method: "cod", phone: "01012345678" });
     expect(p_items).toHaveLength(3);
-    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: "ruqaa", unit_price: 125, qty: 3, design_path: null });
+    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: "ruqaa", unit_price: namedApron, qty: 3, design_path: null });
     expect(p_items[2]).toMatchObject({ mode: "design", design_path: UP, text: null, font: null });
     expect(p_items[0].product_id).toBe("00000000-0000-4000-8000-000000000001");
+  });
+
+  it("charges a mixed cart from the saved discounts and snapshots the original and final prices", async () => {
+    state.discounts.set("chef-apron", 50);
+    const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
+    const bag = seedProducts.find((p) => p.slug === "polka-dot-bag")!;
+    const discounted = apron.base_price / 2 + apron.personalization_fee;
+    const original = apron.base_price + apron.personalization_fee;
+    const subtotal = discounted * 2 + bag.base_price;
+    const result = await place({
+      lines: [
+        std({ mode: "name", text: "Fatma", font: "ruqaa", qty: 2, discount_percent: 99, unit_price: 1 }),
+        std({ productId: "polka-dot-bag", unitPrice: 1 }),
+      ],
+    });
+    expect(result.ok).toBe(true);
+    const { p_order, p_items } = state.rpcCalls[0].args;
+    expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40 });
+    expect(p_items[0]).toMatchObject({ unit_price: discounted, original_unit_price: original, discount_percent: 50 });
+    expect(p_items[1]).toMatchObject({ unit_price: bag.base_price, original_unit_price: null, discount_percent: null });
   });
 
   it("normalizes Arabic-digit phone numbers", async () => {

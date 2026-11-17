@@ -38,7 +38,12 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getUser();
-  if (!data.user && !isLogin) return NextResponse.redirect(new URL("/admin/login", request.url));
+  // A proxy redirect would replay the POST on the login page. Let the action's
+  // authorization check produce the redirect in Next.js's action response.
+  const isServerAction = request.method === "POST" && request.headers.has("next-action");
+  if (!data.user && !isLogin && !isServerAction) {
+    return NextResponse.redirect(new URL("/admin/login", request.url));
+  }
   return response;
 }
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveCategory, type SaveState } from "@/app/actions/admin-catalog";
 import type { ProductImage } from "@/lib/types";
+import { CatalogSlugField } from "./CatalogSlugField";
 import { ImagesField } from "./ImagesField";
 
 export type CategoryFormValues = {
@@ -13,7 +14,6 @@ export type CategoryFormValues = {
   promo_title_ar: string;
   sort: string;
   is_active: boolean;
-  accent_color: string;
   image: ProductImage[];
 };
 
@@ -21,23 +21,17 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveCategory, { ok: false, message: "" });
   const e = state.fieldErrors ?? {};
   const err = (k: string) => (e[k] ? <span className="adm-err" role="alert">{e[k]}</span> : null);
-  const isNew = v.id === "new";
+  const [name, setName] = useState(v.name_ar);
   return (
     <form action={action} className="adm-form">
       <input type="hidden" name="id" value={v.id} />
       <div className="adm-row">
         <div className="adm-f">
           <label htmlFor="name_ar">اسم القسم</label>
-          <input id="name_ar" name="name_ar" type="text" defaultValue={v.name_ar} required maxLength={80} aria-invalid={!!e.name_ar} />
+          <input id="name_ar" name="name_ar" type="text" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} aria-invalid={!!e.name_ar} />
           {err("name_ar")}
         </div>
-        <div className="adm-f">
-          <label htmlFor="slug">الرابط (إنجليزي)</label>
-          <input id="slug" name="slug" type="text" defaultValue={v.slug} required dir="ltr" maxLength={60} readOnly={!isNew} aria-invalid={!!e.slug} />
-          <span className="adm-hint" dir="ltr" style={{ textAlign: "right" }}>/collections/{v.slug || "your-slug"}</span>
-          {!isNew && <span className="adm-hint">ثابت بعد الإنشاء عشان الروابط متتكسرش.</span>}
-          {err("slug")}
-        </div>
+        <CatalogSlugField name={name} savedSlug={v.slug} kind="category" />
       </div>
       <div className="adm-f">
         <label htmlFor="description_ar">وصف القسم (سطر واحد تحت العنوان)</label>
@@ -54,14 +48,6 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
         <span className="lbl">صورة القسم (للمربع في الصفحة الرئيسية والبانر)</span>
         <ImagesField name="images" initial={v.image} max={1} />
         {err("images")}
-      </div>
-      <div className="adm-f">
-        <label htmlFor="accent_color">لون القسم (بيظهر لما الزائر يعدّي على المربع في الرئيسية)</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <input id="accent_color" name="accent_color" type="color" defaultValue={v.accent_color} style={{ width: 56, height: 40, padding: 2 }} aria-invalid={!!e.accent_color} />
-          <span className="adm-hint" dir="ltr">{v.accent_color}</span>
-        </div>
-        {err("accent_color")}
       </div>
       <div className="adm-row">
         <div className="adm-f">

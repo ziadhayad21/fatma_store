@@ -147,13 +147,36 @@ try {
   const dl = await fetch(dlHref);
   check("download link serves the exact file as an attachment", dl.ok && /attachment/.test(dl.headers.get("content-disposition") ?? "") && Buffer.from(await dl.arrayBuffer()).equals(PNG), dl.headers.get("content-disposition") ?? "");
 
-  await page.locator("#status").selectOption("printing");
+  await page.getByLabel("حالة الطلب").selectOption("prepared");
   await page.getByRole("button", { name: "حفظ الحالة" }).click();
   await page.getByText("اتحدّثت الحالة").waitFor();
   const st = (await sb.from("orders").select("status").eq("id", o1.id).single()).data.status;
-  check("changing status saves to the database", st === "printing", st);
+  check("changing status saves to the database", st === "prepared", st);
   await page.reload({ waitUntil: "load" });
-  check("…and the badge reflects it", ((await page.locator(".adm-badge").first().textContent()) ?? "").includes("تحت الطباعة"));
+  check("…and the badge reflects it", ((await page.locator(".adm-badge").first().textContent()) ?? "").includes("اتجهز"));
+  await page.goto(base + "/admin/orders", { waitUntil: "load" });
+  const orderRow = page.locator("tbody tr").filter({ has: page.getByRole("link", { name: `#${o1.number}`, exact: true }) });
+  await orderRow.getByLabel("حالة الطلب").selectOption("returned");
+  const returnDialog = page.getByRole("dialog", { name: "إرجاع الطلب" });
+  const returnSave = returnDialog.getByRole("button", { name: "حفظ الإرجاع" });
+  await returnDialog.waitFor();
+  check("return cannot be saved without a reason", await returnSave.isDisabled());
+  await returnDialog.getByLabel("سبب الإرجاع").fill("المقاس غير مناسب");
+  await returnSave.click();
+  await returnDialog.waitFor({ state: "hidden" });
+  await page.goto(base + "/admin/orders?status=returned", { waitUntil: "load" });
+  await orderRow.locator('.adm-badge[data-s="returned"]').waitFor();
+  await orderRow.getByRole("link", { name: `#${o1.number}`, exact: true }).click();
+  await page.waitForURL(base + `/admin/orders/${o1.id}`);
+  await page.reload({ waitUntil: "load" });
+  await page.getByText("المقاس غير مناسب", { exact: true }).waitFor();
+  const returned = (await sb.from("orders").select("status, return_reason").eq("id", o1.id).single()).data;
+  check("return reason and status persist after reload", returned?.status === "returned" && returned.return_reason === "المقاس غير مناسب");
+  await page.getByLabel("حالة الطلب").selectOption("delivered");
+  await page.getByRole("button", { name: "حفظ الحالة" }).click();
+  await page.getByText("اتحدّثت الحالة").waitFor();
+  const delivered = (await sb.from("orders").select("status, return_reason").eq("id", o1.id).single()).data;
+  check("leaving Returned clears the saved reason", delivered?.status === "delivered" && delivered.return_reason === null);
 
   // ---------------------------------------------------------------- shipping (+ storefront cache)
   await page.goto(base + "/admin/shipping", { waitUntil: "load" });
@@ -207,8 +230,10 @@ try {
 
   // new product with a real image upload
   await page.goto(base + "/admin/products/new", { waitUntil: "load" });
-  await vis("#name_ar").fill(`منتج اختبار ${tag}`);
-  await vis("#slug").fill(`e2e-${tag}`);
+  const productName = `E2E ${tag}`;
+  const productSlug = `e2e-${tag}`;
+  await vis("#name_ar").fill(productName);
+  check("product slug is generated from the name", await vis("#slug").inputValue() === productSlug);
   await vis("#category_id").selectOption({ index: 1 });
   await vis("#base_price").fill("50");
   await vis("#personalization_fee").fill("10");
@@ -220,31 +245,35 @@ try {
   check("uploaded product image is publicly readable", (await fetch(imgSrc)).ok);
   await save();
   await page.waitForURL(/\/admin\/products\/[0-9a-f-]{36}\?created=1/);
-  const created = (await sb.from("products").select("id, images, is_active").eq("slug", `e2e-${tag}`).single()).data;
+  const created = (await sb.from("products").select("id, images, is_active").eq("slug", productSlug).single()).data;
   cleanup.products.push(created.id);
   check("new product created with its image", created.images?.[0]?.src === imgSrc && created.is_active === true);
-  const np = await html(`/products/e2e-${tag}`);
-  check("new product is live on the storefront immediately (no rebuild)", np.includes(`منتج اختبار ${tag}`) && np.includes("50 ج.م"));
-  await vis("#slug").fill("Bad Slug!");
-  await save();
-  await vis(".adm-err").first().waitFor();
-  check("invalid slug rejected", true);
-  await vis("#slug").fill(`e2e-${tag}`);
+  const np = await html(`/products/${productSlug}`);
+  check("new product is live on the storefront immediately (no rebuild)", np.includes(productName) && np.includes("50 ج.م"));
+  await vis("#name_ar").fill(`Renamed ${productName}`);
   await vis('input[name="is_active"]').uncheck();
   await save();
   await page.locator("text=/اتحفظ/ >> visible=true").first().waitFor();
-  const hidden = await html(`/products/e2e-${tag}`);
+  const edited = (await sb.from("products").select("slug").eq("id", created.id).single()).data;
+  check("editing a product name keeps its existing URL", edited?.slug === productSlug);
+  const hidden = await html(`/products/${productSlug}`);
   check("hiding a product removes it from the storefront immediately", !hidden.includes("50 ج.م") || hidden.includes("data-testid=\"not-found\""));
   // slug collision
-  await vis("#slug").fill("polka-dot-bag");
+  await page.goto(base + "/admin/products/new", { waitUntil: "load" });
+  await vis("#name_ar").fill(productName);
+  await vis("#category_id").selectOption({ index: 1 });
+  await vis("#base_price").fill("50");
+  await vis('input[name="is_active"]').uncheck();
   await save();
-  await page.locator("text=/مستخدم/ >> visible=true").first().waitFor();
-  check("duplicate slug is rejected with a clear message", true);
+  await page.waitForURL(/\/admin\/products\/[0-9a-f-]{36}\?created=1/);
+  const duplicate = (await sb.from("products").select("id").eq("slug", `${productSlug}-2`).single()).data;
+  if (duplicate) cleanup.products.push(duplicate.id);
+  check("duplicate product name gets its own slug", !!duplicate);
 
   // ---------------------------------------------------------------- categories
   await page.goto(base + "/admin/categories/new", { waitUntil: "load" });
-  await vis("#name_ar").fill(`قسم ${tag}`);
-  await vis("#slug").fill(`cat-${tag}`);
+  await vis("#name_ar").fill(`Cat ${tag}`);
+  check("category slug is generated from the name", await vis("#slug").inputValue() === `cat-${tag}`);
   await vis("#description_ar").fill("وصف قسم الاختبار");
   await vis('input[type="file"]').setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG });
   await page.waitForSelector(".adm-img img");
@@ -256,7 +285,7 @@ try {
   const h1 = await html("/");
   check("new category appears in nav, footer and home tiles IMMEDIATELY", (h1.match(new RegExp(`/collections/cat-${tag}`, "g")) ?? []).length >= 3, String((h1.match(new RegExp(`/collections/cat-${tag}`, "g")) ?? []).length));
   const cp = await html(`/collections/cat-${tag}`);
-  check("new collection page renders with its description", cp.includes(`قسم ${tag}`) && cp.includes("وصف قسم الاختبار"));
+  check("new collection page renders with its description", cp.includes(`Cat ${tag}`) && cp.includes("وصف قسم الاختبار"));
   check("category slug is read-only after creation", await vis("#slug").evaluate((e) => e.readOnly));
   await vis("#name_ar").fill(`قسم معدّل ${tag}`);
   await save();

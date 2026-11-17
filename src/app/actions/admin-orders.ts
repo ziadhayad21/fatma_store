@@ -2,19 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
-import { isOrderStatus } from "@/lib/order-status";
+import { isOrderStatus, RETURN_REASON_MAX } from "@/lib/order-status";
 
-export type StatusState = { ok: boolean; message: string };
+export type StatusState = { ok: boolean; message: string; submittedStatus?: string };
 
 export async function updateOrderStatus(_prev: StatusState, formData: FormData): Promise<StatusState> {
   const { supabase } = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const status = formData.get("status");
-  if (!/^[0-9a-f-]{36}$/i.test(id) || !isOrderStatus(status)) return { ok: false, message: "بيانات غير صحيحة." };
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) || !isOrderStatus(status)) {
+    return { ok: false, message: "بيانات غير صحيحة." };
+  }
 
-  const { data, error } = await supabase.from("orders").update({ status }).eq("id", id).select("id");
-  if (error || !data?.length) return { ok: false, message: "تعذّر تحديث الحالة." };
+  const rawReason = formData.get("return_reason");
+  const reason = typeof rawReason === "string" ? rawReason.trim() : "";
+  if (status === "returned" && (!reason || reason.length > RETURN_REASON_MAX)) {
+    return { ok: false, message: "اكتب سبب الإرجاع (حتى ١٠٠٠ حرف).", submittedStatus: status };
+  }
+
+  const update = { status, return_reason: status === "returned" ? reason : null };
+  const { data, error } = await supabase.from("orders").update(update).eq("id", id).select("id");
+  if (error || !data?.length) return { ok: false, message: "تعذّر تحديث الحالة.", submittedStatus: status };
+  revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
-  return { ok: true, message: "اتحدّثت الحالة." };
+  revalidatePath(`/order/${id}`);
+  return { ok: true, message: "اتحدّثت الحالة.", submittedStatus: status };
 }

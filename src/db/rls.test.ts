@@ -53,18 +53,24 @@ async function as<T = Record<string, unknown>>(
   sub: string | null,
   sql: string,
   params: unknown[] = [],
+  persist = false,
 ): Promise<{ rows: T[]; error?: string; code?: string; affected?: number }> {
   await db.exec("begin");
+  let committed = false;
   try {
     if (who !== "postgres") await db.exec(`set local role ${who}`);
     await db.query(`select set_config('request.jwt.claims', $1, true)`, [sub ? JSON.stringify({ sub, role: who }) : ""]);
     const res = await db.query<T>(sql, params);
+    if (persist) {
+      await db.exec("commit");
+      committed = true;
+    }
     return { rows: res.rows, affected: res.affectedRows };
   } catch (e) {
     const err = e as { message: string; code?: string };
     return { rows: [], error: err.message, code: err.code };
   } finally {
-    await db.exec("rollback");
+    if (!committed) await db.exec("rollback");
   }
 }
 
@@ -116,6 +122,30 @@ afterAll(async () => {
 });
 
 describe("seed + constraints", () => {
+  it("migrates legacy statuses without removing orders or their contents", async () => {
+    const legacy = new PGlite();
+    try {
+      await legacy.exec(BOOTSTRAP);
+      await legacy.exec(readFileSync("supabase/migrations/20260101000100_schema.sql", "utf8"));
+      await legacy.exec(`
+        insert into public.shipping_rates (governorate, fee) values ('القاهرة', 40);
+        insert into public.orders (status, customer_name, phone, governorate, area, address, subtotal, shipping, total)
+        select status, status, '01012345678', 'القاهرة', 'مدينة نصر', '12 شارع التسعين', 250, 40, 290
+        from unnest(array['new', 'confirmed', 'printing', 'shipped', 'delivered', 'cancelled']) as status
+      `);
+      const before = await legacy.query<{ status: string }>("select id, number, customer_name, total, status from public.orders order by number");
+      await legacy.exec(readFileSync("supabase/migrations/20260101000700_order_statuses.sql", "utf8"));
+      const after = await legacy.query("select id, number, customer_name, total, status, return_reason from public.orders order by number");
+      expect(after.rows).toEqual(before.rows.map((row) => ({
+        ...row,
+        status: row.status === "confirmed" || row.status === "printing" ? "prepared" : row.status,
+        return_reason: null,
+      })));
+    } finally {
+      await legacy.close();
+    }
+  });
+
   it("seeds categories, products and all 27 governorates (fees unset)", async () => {
     const c = await as("postgres", null, "select count(*)::int n from public.categories");
     const p = await as("postgres", null, "select count(*)::int n from public.products");
@@ -224,7 +254,8 @@ describe("admins", () => {
   });
 
   it("update order status (valid values only) but cannot insert or delete orders", async () => {
-    const ok = await as("authenticated", ADMIN, "update public.orders set status = 'confirmed'");
+    await setup("select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order()), JSON.stringify([item({ product_id: "", mode: "standard", text: "", font: "" })])]);
+    const ok = await as("authenticated", ADMIN, "update public.orders set status = 'prepared'");
     expect(ok.affected).toBeGreaterThan(0);
     const bad = await as("authenticated", ADMIN, "update public.orders set status = 'lost'");
     expect(bad.code).toBe("23514");
@@ -233,6 +264,29 @@ describe("admins", () => {
       (await as("authenticated", ADMIN, `insert into public.orders (customer_name, phone, governorate, area, address, subtotal, shipping, total)
        values ('x y', '01012345678', 'القاهرة', 'a', 'abc', 1, 1, 2)`)).code,
     ).toBe("42501");
+  });
+
+  it("requires a return reason, persists it across reads and clears it on a later status change", async () => {
+    const { rows: [{ id }] } = await db.query<{ id: string }>(
+      "select public.create_order($1::jsonb, $2::jsonb) ->> 'id' as id",
+      [JSON.stringify(order()), JSON.stringify([item({ product_id: "", mode: "standard", text: "", font: "" })])],
+    );
+    const read = "select status, return_reason from public.orders where id = $1";
+    expect((await as("authenticated", ADMIN, read, [id])).rows[0]).toEqual({ status: "new", return_reason: null });
+    const setReturn = "update public.orders set status = 'returned', return_reason = $2 where id = $1";
+    for (const invalid of [null, "", " \t\n", "x".repeat(1001)]) {
+      const result = await as("authenticated", ADMIN, setReturn, [id, invalid]);
+      expect(result.code).toBe("23514");
+    }
+    const reason = "المقاس غير مناسب";
+    expect((await as("authenticated", CUSTOMER, setReturn, [id, reason])).affected).toBe(0);
+    expect((await as("authenticated", ADMIN, setReturn, [id, reason], true)).affected).toBe(1);
+
+    expect((await as("authenticated", ADMIN, read, [id])).rows[0]).toEqual({ status: "returned", return_reason: reason });
+    expect((await as("authenticated", CUSTOMER, read, [id])).rows).toHaveLength(0);
+    expect((await as("authenticated", ADMIN, "update public.orders set status = 'delivered' where id = $1", [id])).code).toBe("23514");
+    expect((await as("authenticated", ADMIN, "update public.orders set status = 'delivered', return_reason = null where id = $1", [id], true)).affected).toBe(1);
+    expect((await as("authenticated", ADMIN, read, [id])).rows[0]).toEqual({ status: "delivered", return_reason: null });
   });
 
   it("manage catalog, shipping rates and product images", async () => {
@@ -254,6 +308,32 @@ describe("admins", () => {
 });
 
 describe("create_order (service role)", () => {
+  it("keeps each ordered product's original image after the product changes or is deleted", async () => {
+    await db.transaction(async (tx) => {
+      const { rows: products } = await tx.query<{ id: string; images: unknown[] }>(
+        "select id, images from public.products where jsonb_array_length(images) > 0 order by id limit 2",
+      );
+      expect(products).toHaveLength(2);
+      await tx.exec("set local role service_role");
+      const { rows: [{ id }] } = await tx.query<{ id: string }>(
+        "select public.create_order($1::jsonb, $2::jsonb) ->> 'id' as id",
+        [JSON.stringify(order()), JSON.stringify(products.map((p) => item({ product_id: p.id })))],
+      );
+      await tx.exec("reset role");
+      await tx.query("update public.products set images = '[]' where id = $1", [products[0].id]);
+      await tx.query("delete from public.products where id = $1", [products[1].id]);
+      const { rows } = await tx.query(
+        "select product_id, product_image_snapshot from public.order_items where order_id = $1",
+        [id],
+      );
+      expect(rows).toEqual(expect.arrayContaining([
+        { product_id: products[0].id, product_image_snapshot: products[0].images[0] },
+        { product_id: null, product_image_snapshot: products[1].images[0] },
+      ]));
+      await tx.rollback();
+    });
+  });
+
   it("creates the order and its items atomically and numbers orders from 1001", async () => {
     const r = await as<{ r: { id: string; number: number } }>(
       "service_role",

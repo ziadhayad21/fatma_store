@@ -7,6 +7,7 @@ import { useId, useRef, useState, useTransition } from "react";
 import { placeOrder } from "@/app/actions/checkout";
 import { useCartProducts } from "@/components/cart/useCartProducts";
 import { useDesignUrls } from "@/components/cart/useDesignUrls";
+import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cleanCustomer, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/checkout";
@@ -14,7 +15,8 @@ import type { ShippingRate } from "@/lib/data/types";
 import { formatPrice } from "@/lib/format";
 import { governorates } from "@/lib/governorates";
 import { defaultPaymentMethod, paymentMethods } from "@/lib/payments";
-import { unitPrice, variantText } from "@/lib/pricing";
+import { variantText } from "@/lib/pricing";
+import { personalizationPrice, productPrice, roundMoney, saleBasePrice } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 
@@ -40,14 +42,11 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   // until localStorage was read we do not know whether the cart is empty: show a placeholder of about the
   // final height instead of flashing the empty state (that made the footer jump)
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
-  const itemsTotal = lines.reduce((a, l) => a + products.get(l.productId)!.base_price * l.qty, 0);
-  const printTotal = lines.reduce(
-    (a, l) => a + (unitPrice(products.get(l.productId)!, l.mode) - products.get(l.productId)!.base_price) * l.qty,
-    0,
-  );
+  const itemsTotal = roundMoney(lines.reduce((a, l) => a + saleBasePrice(products.get(l.productId)!) * l.qty, 0));
+  const printTotal = roundMoney(lines.reduce((a, l) => a + personalizationPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
   const rate = rates.find((r) => r.governorate === form.governorate);
   const shippingKnown = !!rate && rate.fee !== null;
-  const total = itemsTotal + printTotal + (shippingKnown ? rate!.fee! : 0);
+  const total = roundMoney(itemsTotal + printTotal + (shippingKnown ? rate!.fee! : 0));
   const shippingBlocked = !!form.governorate && !shippingKnown;
 
   const set = (k: keyof CustomerInput) => (v: string) => {
@@ -247,7 +246,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                       <div style={{ fontWeight: 500 }}>{p.name_ar} <span className="muted">× {l.qty}</span></div>
                       <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</div>
                     </div>
-                    <span className="price">{formatPrice(unitPrice(p, l.mode) * l.qty)}</span>
+                    <PriceDisplay {...productPrice(p, l.mode, l.qty)} />
                   </div>
                 );
               })}

@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { TextLink } from "@/components/ui/TextLink";
 import { formatPrice } from "@/lib/format";
-import { unitPrice, variantText } from "@/lib/pricing";
+import { variantText } from "@/lib/pricing";
+import { personalizationPrice, productPrice, roundMoney, saleBasePrice } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 import { removeCartLine } from "@/lib/cart-actions";
@@ -22,11 +24,8 @@ export function CartView() {
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
-  const itemsTotal = lines.reduce((a, l) => a + products.get(l.productId)!.base_price * l.qty, 0);
-  const printTotal = lines.reduce(
-    (a, l) => a + (unitPrice(products.get(l.productId)!, l.mode) - products.get(l.productId)!.base_price) * l.qty,
-    0,
-  );
+  const itemsTotal = roundMoney(lines.reduce((a, l) => a + saleBasePrice(products.get(l.productId)!) * l.qty, 0));
+  const printTotal = roundMoney(lines.reduce((a, l) => a + personalizationPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
 
   const hydrated = useCartHydrated();
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
@@ -68,7 +67,7 @@ export function CartView() {
             {lines.map((l) => {
               const p = products.get(l.productId)!;
               const img = p.images[0];
-              const unit = unitPrice(p, l.mode);
+              const unit = productPrice(p, l.mode);
               const thumb = l.designPath ? designUrls[l.designPath] : undefined;
               return (
                 <div className="row" key={l.key}>
@@ -82,7 +81,7 @@ export function CartView() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                       <Link className="card-name" href={`/products/${p.slug}`} style={{ fontSize: 16 }}>{p.name_ar}</Link>
                       <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</span>
-                      <span className="price" style={{ fontSize: 14 }}>{formatPrice(unit)}</span>
+                      <PriceDisplay {...unit} style={{ fontSize: 14 }} />
                       <div style={{ display: "flex", gap: 16 }}>
                         <Link className="rm" href={`/products/${p.slug}?edit=${encodeURIComponent(l.key)}`} style={{ display: "inline-flex", alignItems: "center" }}>عدّل</Link>
                         <button type="button" className="rm" onClick={() => removeCartLine(l.key)}>شيل</button>
@@ -90,7 +89,7 @@ export function CartView() {
                     </div>
                   </div>
                   <QtyStepper value={l.qty} onChange={(n) => setQty(l.key, n)} />
-                  <span className="price tot">{formatPrice(unit * l.qty)}</span>
+                  <span className="price tot">{formatPrice(roundMoney(unit.price * l.qty))}</span>
                 </div>
               );
             })}
@@ -103,7 +102,7 @@ export function CartView() {
             <div className="sl"><span className="muted">الطباعة والتخصيص</span><span className="price">{formatPrice(printTotal)}</span></div>
             <div className="sl"><span className="muted">الشحن</span><span style={{ fontSize: 14 }}>بيتحسب في الخطوة الجاية</span></div>
             <div style={{ height: 1, background: "#dcd8d1" }} />
-            <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(itemsTotal + printTotal)}</span></div>
+            <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(roundMoney(itemsTotal + printTotal))}</span></div>
             <Button href="/checkout" arrow block>إتمام الطلب</Button>
           </aside>
         </div>

@@ -1,6 +1,7 @@
 import { seedCategories } from "../seed-categories";
 import { seedProducts } from "../seed-products";
 import { governorates } from "../governorates";
+import { saleBasePrice } from "../pricing/discount";
 import type { Category, Product } from "../types";
 import type { CatalogSource, ShippingRate } from "./types";
 
@@ -42,8 +43,8 @@ export const seedSource: CatalogSource = {
   async productPage(opts) {
     const all = join().filter((p) => p.category_slug === opts.categorySlug);
     const sorted = [...all].sort((a, b) => {
-      if (opts.sort === "low") return a.base_price - b.base_price || a.sort - b.sort;
-      if (opts.sort === "high") return b.base_price - a.base_price || a.sort - b.sort;
+      if (opts.sort === "low") return saleBasePrice(a) - saleBasePrice(b) || a.sort - b.sort;
+      if (opts.sort === "high") return saleBasePrice(b) - saleBasePrice(a) || a.sort - b.sort;
       return b.created_at.localeCompare(a.created_at) || a.sort - b.sort; // newest first
     });
     const total = sorted.length;

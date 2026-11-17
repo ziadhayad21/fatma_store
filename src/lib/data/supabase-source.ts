@@ -2,8 +2,9 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { Category, Product, ProductImage, ProductPage, ProductRow, Review } from "@/lib/types";
 import type { CatalogSource, ShippingRate } from "./types";
 
-export type JoinedRow = Omit<ProductRow, "base_price" | "personalization_fee" | "images"> & {
+export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "personalization_fee" | "images"> & {
   base_price: number | string;
+  discount_percent?: number | string | null;
   personalization_fee: number | string;
   images: ProductImage[] | null;
   category: { slug: string; name_ar: string; is_active: boolean } | null;
@@ -16,6 +17,7 @@ export function toProduct(r: JoinedRow): Product {
   return {
     ...row,
     base_price: Number(r.base_price),
+    discount_percent: r.discount_percent == null ? null : Number(r.discount_percent),
     personalization_fee: Number(r.personalization_fee),
     images: Array.isArray(r.images) ? r.images : [],
     category_slug: category?.slug ?? "",
@@ -101,15 +103,15 @@ export const supabaseSource: CatalogSource = {
   },
 
   async productPage({ categorySlug, sort, page, pageSize }): Promise<ProductPage> {
-    const run = async (p: number) => {
+    const run = async (p: number, priceColumn = "sale_price") => {
       let q = createPublicClient()
         .from("products")
         .select(PRODUCT_SELECT, { count: "exact" })
         .eq("is_active", true)
         .eq("category.slug", categorySlug)
         .eq("category.is_active", true);
-      if (sort === "low") q = q.order("base_price", { ascending: true }).order("sort", { ascending: true });
-      else if (sort === "high") q = q.order("base_price", { ascending: false }).order("sort", { ascending: true });
+      if (sort === "low") q = q.order(priceColumn, { ascending: true }).order("sort", { ascending: true });
+      else if (sort === "high") q = q.order(priceColumn, { ascending: false }).order("sort", { ascending: true });
       else q = q.order("created_at", { ascending: false }).order("sort", { ascending: true });
       const from = (p - 1) * pageSize;
       return q.range(from, from + pageSize - 1);
@@ -117,11 +119,14 @@ export const supabaseSource: CatalogSource = {
 
     let current = Math.max(1, page);
     let res = await run(current);
+    // Keep older databases readable during a schema-first rollout.
+    const priceColumn = res.error?.code === "42703" && sort !== "new" ? "base_price" : "sale_price";
+    if (priceColumn === "base_price") res = await run(current, priceColumn);
     // out-of-range page (e.g. products were removed): clamp to the last page
     if (res.error?.code === "PGRST103" || (!res.error && (res.data ?? []).length === 0 && current > 1)) {
       const total = res.count ?? 0;
       current = Math.max(1, Math.ceil(total / pageSize));
-      res = await run(current);
+      res = await run(current, priceColumn);
     }
     if (res.error) fail("collection page", res.error);
     const total = res.count ?? 0;

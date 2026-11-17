@@ -1,3 +1,4 @@
+// Catalog data layer - updated
 import { cacheLife, cacheTag } from "next/cache";
 import { source } from "./data/source";
 import type { ShippingRate } from "./data/types";

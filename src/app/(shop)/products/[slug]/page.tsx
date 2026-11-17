@@ -8,6 +8,7 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { Icon } from "@/components/ui/Icon";
 import { getProduct, getRelatedProducts } from "@/lib/catalog";
 import { publicEnv } from "@/lib/env";
+import { saleBasePrice } from "@/lib/pricing/discount";
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -33,7 +34,7 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product) notFound();
-  const related = await getRelatedProducts(slug, 2);
+  const related = await getRelatedProducts(slug, 4);
 
   const abs = (u: string) => (u.startsWith("http") ? u : `${publicEnv.siteUrl}${u}`);
   const jsonLd = {
@@ -48,7 +49,7 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
     offers: {
       "@type": "Offer",
       priceCurrency: "EGP",
-      price: product.base_price,
+      price: saleBasePrice(product),
       availability: "https://schema.org/InStock",
       url: `${publicEnv.siteUrl}/products/${product.slug}`,
     },
@@ -73,24 +74,34 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
         <ProductPurchase product={product} />
       </div>
 
-      <section className="sec related">
-        <div className="sh rv">
-          <div>
-            <span className="eyebrow">اكتشف كمان</span>
-            <h2 className="h2">ممكن يعجبك كمان</h2>
+      {related.length > 0 && (
+        <section className="sec related">
+          <div className="sh rv">
+            <div>
+              <span className="eyebrow">اكتشف كمان</span>
+              <h2 className="h2">ممكن يعجبك كمان</h2>
+            </div>
+            <Link
+              href={`/collections/${product.category_slug}`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#141414] transition-colors hover:text-[#c1121f]"
+            >
+              <span>كل منتجات {product.category_name}</span>
+              <Icon name="arrow" size={16} nudge />
+            </Link>
           </div>
-        </div>
-        <div className="g3" style={{ gap: 24 }}>
-          {related.map((p) => (
-            <ProductCard key={p.slug} product={p} className="rv" sizes="(max-width: 900px) 50vw, 450px" />
-          ))}
-          <Link className="more rv" href="/#categories">
-            <span className="eyebrow" style={{ color: "rgba(255,255,255,.7)" }}>فاطمة</span>
-            <span style={{ fontSize: 30, lineHeight: 1.25, fontWeight: 500 }}>شوف كل الأقسام</span>
-            <Icon name="arrow" size={18} nudge />
-          </Link>
-        </div>
-      </section>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8">
+            {related.map((p, i) => (
+              <ProductCard
+                key={p.slug}
+                product={p}
+                variant="listing"
+                priority={i < 2}
+                sizes="(min-width: 1192px) 280px, (min-width: 1024px) calc(25vw - 18px), (min-width: 640px) calc(50vw - 22px), calc(50vw - 18px)"
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

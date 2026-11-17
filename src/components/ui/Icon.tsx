@@ -4,6 +4,7 @@ const paths = {
   bag: ["M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z", "M9 8V6.5a3 3 0 0 1 6 0V8"],
   menu: ["M4 7h16M4 12h16M4 17h16"],
   close: ["M6 6l12 12M18 6L6 18"],
+  trash: ["M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"],
   arrow: ["M19 12H5m6-6l-6 6 6 6"],
   plus: ["M12 5v14M5 12h14"],
   minus: ["M5 12h14"],

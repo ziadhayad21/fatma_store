@@ -144,6 +144,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       font: l.mode === "name" ? l.font : null,
       design_path: l.mode === "design" ? l.designPath : null,
       unit_price: l.unitPrice,
+      original_unit_price: l.originalUnitPrice,
+      discount_percent: l.discountPercent,
       qty: Math.min(l.qty, MAX_QTY),
     })),
   });

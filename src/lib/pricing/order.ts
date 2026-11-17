@@ -2,7 +2,7 @@ import "server-only";
 import { MAX_QTY } from "@/lib/limits";
 import { isFontId, normalizeName, validateName } from "@/lib/personalization";
 import type { FontId, OrderMode, Product } from "@/lib/types";
-import { unitPrice } from "./core";
+import { productPrice, roundMoney } from "./discount";
 
 /**
  * THE server-side pricing module for orders. Checkout (phase 4) calls only `priceOrder`.
@@ -25,6 +25,8 @@ export type OrderLineInput = {
 export type PricedLine = OrderLineInput & {
   productName: string;
   unitPrice: number;
+  originalUnitPrice: number | null;
+  discountPercent: number | null;
   lineTotal: number;
 };
 
@@ -104,16 +106,23 @@ export async function priceOrder(input: {
   const lines: PricedLine[] = input.lines.map((raw) => {
     const product = input.products.get(raw.productId);
     const clean = cleanLine(raw, product);
-    const unit = unitPrice(product!, clean.mode);
-    return { ...clean, productName: product!.name_ar, unitPrice: unit, lineTotal: unit * clean.qty };
+    const unit = productPrice(product!, clean.mode);
+    return {
+      ...clean,
+      productName: product!.name_ar,
+      unitPrice: unit.price,
+      originalUnitPrice: unit.originalPrice,
+      discountPercent: unit.discountPercent,
+      lineTotal: roundMoney(unit.price * clean.qty),
+    };
   });
-  const subtotal = lines.reduce((a, l) => a + l.lineTotal, 0);
+  const subtotal = roundMoney(lines.reduce((a, l) => a + l.lineTotal, 0));
 
   const ctx: PricingContext = { lines, subtotal, governorate: input.governorate };
   const adjustments: Adjustment[] = [];
   for (const m of input.modules) adjustments.push(...(await m.apply(ctx)));
 
   const shipping = adjustments.filter((a) => a.kind === "shipping").reduce((a, x) => a + x.amount, 0);
-  const total = Math.max(0, subtotal + adjustments.reduce((a, x) => a + x.amount, 0));
+  const total = Math.max(0, roundMoney(subtotal + adjustments.reduce((a, x) => a + x.amount, 0)));
   return { lines, subtotal, adjustments, shipping, total };
 }

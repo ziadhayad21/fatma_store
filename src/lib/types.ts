@@ -36,6 +36,7 @@ export type ProductRow = {
   details_ar: string;
   care_ar: string;
   base_price: number;
+  discount_percent?: number | null;
   personalization_fee: number;
   images: ProductImage[];
   is_active: boolean;

@@ -1,8 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveProduct, type SaveState } from "@/app/actions/admin-catalog";
+import { PriceDisplay } from "@/components/shop/PriceDisplay";
+import { parseMoney } from "@/lib/admin/validate";
+import { productPrice, validDiscountPercent } from "@/lib/pricing/discount";
 import type { ProductImage } from "@/lib/types";
+import { CatalogSlugField } from "./CatalogSlugField";
 import { ImagesField } from "./ImagesField";
 
 export type ProductFormValues = {
@@ -14,6 +18,7 @@ export type ProductFormValues = {
   details_ar: string;
   care_ar: string;
   base_price: string;
+  discount_percent: string;
   personalization_fee: string;
   sort: string;
   is_active: boolean;
@@ -22,15 +27,25 @@ export type ProductFormValues = {
 
 export function ProductForm({ values: v, categories }: { values: ProductFormValues; categories: { id: string; name_ar: string }[] }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveProduct, { ok: false, message: "" });
+  const [uploading, setUploading] = useState(false);
+  const [name, setName] = useState(v.name_ar);
+  const [regularPrice, setRegularPrice] = useState(v.base_price);
+  const [discountEnabled, setDiscountEnabled] = useState(v.discount_percent !== "");
+  const [discount, setDiscount] = useState(v.discount_percent);
+  const parsedPrice = parseMoney(regularPrice);
+  const parsedDiscount = parseMoney(discount, 100);
+  const preview = typeof parsedPrice === "number" && typeof parsedDiscount === "number" && validDiscountPercent(parsedDiscount)
+    ? productPrice({ base_price: parsedPrice, discount_percent: parsedDiscount, personalization_fee: 0 })
+    : null;
   const e = state.fieldErrors ?? {};
   const err = (k: string) => (e[k] ? <span className="adm-err" role="alert">{e[k]}</span> : null);
   return (
-    <form action={action} className="adm-form">
+    <form action={action} className="adm-form" onSubmit={(event) => { if (uploading) event.preventDefault(); }}>
       <input type="hidden" name="id" value={v.id} />
       <div className="adm-row">
         <div className="adm-f">
           <label htmlFor="name_ar">اسم المنتج</label>
-          <input id="name_ar" name="name_ar" type="text" defaultValue={v.name_ar} required maxLength={160} aria-invalid={!!e.name_ar} />
+          <input id="name_ar" name="name_ar" type="text" value={name} onChange={(event) => setName(event.target.value)} required maxLength={160} aria-invalid={!!e.name_ar} />
           {err("name_ar")}
         </div>
         <div className="adm-f">
@@ -42,17 +57,11 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
           {err("category_id")}
         </div>
       </div>
-      <div className="adm-f">
-        <label htmlFor="slug">الرابط (إنجليزي)</label>
-        <input id="slug" name="slug" type="text" defaultValue={v.slug} required dir="ltr" maxLength={80} aria-invalid={!!e.slug} />
-        <span className="adm-hint" dir="ltr" style={{ textAlign: "right" }}>/products/{v.slug || "your-slug"}</span>
-        <span className="adm-hint">لو غيّرت الرابط، الرابط القديم هيبطّل يشتغل.</span>
-        {err("slug")}
-      </div>
+      <CatalogSlugField name={name} savedSlug={v.slug} kind="product" />
       <div className="adm-row">
         <div className="adm-f">
-          <label htmlFor="base_price">السعر (ج.م)</label>
-          <input id="base_price" name="base_price" type="text" inputMode="decimal" defaultValue={v.base_price} required dir="ltr" aria-invalid={!!e.base_price} />
+          <label htmlFor="base_price">السعر الأصلي (ج.م)</label>
+          <input id="base_price" name="base_price" type="text" inputMode="decimal" value={regularPrice} onChange={(event) => setRegularPrice(event.target.value)} required dir="ltr" aria-invalid={!!e.base_price} />
           {err("base_price")}
         </div>
         <div className="adm-f">
@@ -61,6 +70,25 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
           <span className="adm-hint">بتتضاف على السعر لما العميل يختار «باسمك» أو «بتصميمك».</span>
           {err("personalization_fee")}
         </div>
+      </div>
+      <div className="adm-f">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="discount_enabled" checked={discountEnabled} onChange={(event) => setDiscountEnabled(event.target.checked)} />
+          تفعيل الخصم
+        </label>
+        {discountEnabled && (
+          <div className="adm-row">
+            <div className="adm-f">
+              <label htmlFor="discount_percent">نسبة الخصم (%)</label>
+              <input id="discount_percent" name="discount_percent" type="text" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} required dir="ltr" aria-invalid={!!e.discount_percent} />
+              {err("discount_percent")}
+            </div>
+            <div className="adm-f" aria-live="polite">
+              <span className="lbl">معاينة السعر</span>
+              {preview ? <PriceDisplay {...preview} /> : <span className="adm-hint">اكتب السعر الأصلي ونسبة خصم صحيحة.</span>}
+            </div>
+          </div>
+        )}
       </div>
       <div className="adm-f">
         <label htmlFor="description_ar">الوصف</label>
@@ -79,7 +107,7 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
       </div>
       <div className="adm-f">
         <span className="lbl">الصور (الأولى هي الرئيسية، والتانية بتظهر عند تمرير الماوس)</span>
-        <ImagesField name="images" initial={v.images} max={8} />
+        <ImagesField name="images" initial={v.images} max={8} onUploadingChange={setUploading} />
         {err("images")}
       </div>
       <div className="adm-row">
@@ -95,7 +123,7 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
         </label>
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <button className="adm-btn" type="submit" disabled={pending}>{pending ? "جاري الحفظ…" : "حفظ"}</button>
+        <button className="adm-btn" type="submit" disabled={pending || uploading}>{pending ? "جاري الحفظ…" : "حفظ"}</button>
         {state.message && <span className={state.ok ? "adm-ok" : "adm-err"} role="status">{state.message}</span>}
       </div>
     </form>

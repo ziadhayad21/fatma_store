@@ -7,15 +7,15 @@ import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
-import { formatPrice } from "@/lib/format";
 import { normalizeName, validateName } from "@/lib/personalization";
-import { unitPrice } from "@/lib/pricing";
+import { productPrice } from "@/lib/pricing/discount";
 import type { FontId, OrderMode, Product } from "@/lib/types";
 import { designUploader } from "@/lib/upload";
 import { useCart, type CartLine } from "@/store/cart";
 import { useUI } from "@/store/ui";
 import { DesignPanel, type DesignState } from "./DesignPanel";
 import { NamePanel } from "./NamePanel";
+import { PriceDisplay } from "./PriceDisplay";
 
 const WAYS: { id: OrderMode; title: string; sub: string; extra: string }[] = [
   { id: "standard", title: "زي ما هو", sub: "المنتج بتصميمه الأصلي", extra: "" },
@@ -99,8 +99,8 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
           {p.category_name}
         </Link>
         <h1 style={{ fontSize: 34, lineHeight: 1.25 }}>{p.name_ar}</h1>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span className="price" style={{ fontSize: 20 }}>{formatPrice(unitPrice(p, mode))}</span>
+        <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }}>
+          <PriceDisplay {...productPrice(p, mode)} style={{ fontSize: 20 }} />
           {mode !== "standard" && (
             <span className="rise" style={{ fontSize: 14, color: "var(--accent)" }}>+ تكلفة الطباعة</span>
           )}

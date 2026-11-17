@@ -45,7 +45,7 @@ npm run db:push                          # applies the pending migrations to the
 |---|---|
 | `…0100_schema.sql` | tables, constraints, indexes, `create_order()`, `is_admin()`, `grant_admin()`, grants and **RLS on every table** |
 | `…0200_storage.sql` | buckets `product-images` (public) and `designs` (**private**) + admin-only storage policies |
-| `…0300_seed.sql` | 3 categories, 3 products (placeholder prices), the 27 governorates (fees **empty**) — idempotent |
+| `…0300_seed.sql` | 3 categories, 30 products (10 per category: towels, aprons, bags), the 27 governorates (fees **empty**) — idempotent |
 
 ### 1.3 Auth settings
 Authentication → **Sign In / Providers** → Email: keep enabled, and **turn off "Allow new users to sign up"**
@@ -82,6 +82,10 @@ It creates and deletes one test order and one test upload.
 
 ## 1.7 Admin console (`/admin`)
 Sign in with the admin account created in 1.4. Everything is Arabic/RTL and works on mobile.
+- **لوحة التحكم الرئيسية** — modern executive overview with warm cream aesthetic (`#FDFBF7`):
+  - 8-metric summary cards (Total Products, Cancelled Orders, Awaiting Payment, Ready to Ship, In Production, Quality Check, New Inquiries).
+  - Polite shipping rates coverage warning banner alerting when provinces lack configured rates.
+  - Latest Orders transaction table with customer names, item counts, totals in EGP, and rounded status pills.
 - **الطلبات** — filter by status, search by order number / phone / name, order detail with the customer's name rendered in the chosen font,
   the uploaded design (signed URL + download button), WhatsApp/phone links and status updates (new → confirmed → printing → shipped → delivered / cancelled).
 - **المنتجات / الأقسام** — create and edit, prices and print fee, descriptions, show/hide, sort order and image upload to the public `product-images` bucket (reorder, captions).
@@ -166,8 +170,20 @@ Table `rate_limits` + function `hit_rate_limit` (migration `…0400`), used by `
 ### 5.5 Order notifications (not built)
 `src/lib/notifications/index.ts` exports `onOrderPlaced(order)`, called by `placeOrder` **after** the order is saved. Today it does nothing. To add email / WhatsApp / SMS: write a `Notifier` (`{ name, send(order) }`) with the provider's SDK, add it to the `notifiers` array in that file, and add the provider's key as a server environment variable. Each notifier runs in isolation with a 3-second limit and its errors are only logged, so a provider outage can never fail or slow a checkout. `PlacedOrder` carries the customer, address, totals and each line (mode, name text, font). For a design upload, send the admin link `/admin/orders/<id>` rather than the file itself (the file is private).
 
-## 6. Home page, reviews and category colours
-- Home order: hero, categories, marquee band, reviews, about ("حكايتنا"), footer. Nav / mobile menu / footer link "حكايتنا" to `/#about`.
+## 6. Home page, reels gallery and card design system
+- **Home section order**: hero, categories ("Shop by Department"), marquee band, video reels gallery ("شوف منتجاتنا على الحقيقة"), reviews, about ("حكايتنا"), footer. Nav / mobile menu / footer link "حكايتنا" to `/#about`.
+- **Video Reels Gallery (`VideoReelsSection.tsx`)**:
+  - Displays local product videos (`/video/bag.mp4`, `/video/bibs.mp4`, `/video/towels.mp4` in `public/video/`).
+  - **Editorial Staggered / Stepped Composition**: on desktop, the 3 cards sit side by side in an asymmetric triangular composition where the center reel (Chef Fatma aprons) is elevated 60px higher as the visual focal point with a golden badge, while left and right cards sit gracefully lower.
+  - **Playback & Interactivity**: videos autoplay seamlessly (muted, loop, playsInline) with no native browser chrome. Visitors can tap the frosted glass button in the top corner to toggle original sound, or tap anywhere to pause/resume with an elegant center indicator.
+  - **Zero-Latency Fallback**: `<video poster="...">` paired with Next.js image fallbacks guarantees immediate paint with no black frames while media streams.
+  - **Responsive Layout**: 3 stepped columns on desktop, compact margins on tablet, and an alternating vertical staggered stack on mobile that delivers an editorial magazine feel without horizontal squashing.
+- **Unified 3:4 Card Geometry (`dept-card`)**:
+  - All product cards (`ProductCard.tsx`), collection promo tiles, and "Other Departments" (`OtherCategories`) cards are strictly standardized to a **`3:4` portrait aspect ratio** (`380px × 506.66px` on desktop) with `1rem` rounded corners, subtle drop shadows, and `object-fit: cover`.
+  - Top edge is fully preserved with `clip-path: none !important` across all scroll positions, ensuring badges (`New`, `Best Seller`, price tags) and artwork remain 100% visible and unclipped.
+  - Bottom action bars display product/category titles alongside unified `"Shop ←"` pill buttons with calculated padding to prevent text collision.
+- **Expanded 30-Product Catalog**:
+  - Seed migration `supabase/migrations/20260101000300_seed.sql` and `src/lib/seed-products.ts` contain 10 products per category (10 towels, 10 aprons, 10 bags) with authentic Arabic copy, photography arrays, and realistic prices (85–160 EGP).
 - **Reviews** (`public.reviews`, migration `…0500`): real reviews only, entered in **/admin/reviews** (add, edit, show/hide, move up/down, optional "اشترت: <product>", avatar colour). The whole section is hidden until at least **3** are published (`MIN_REVIEWS` in `src/lib/reviews.ts`). Public can read published rows only (RLS); the cached read uses the `reviews` tag, so admin changes show immediately.
 - **Category hover colour**: `categories.accent_color` (colour input in the category form). The tile link turns into a pill of that colour on hover. Defaults: towels #EFE6D6, aprons #F6D6DC, bags #F2C94C.
 - **About copy** lives in `src/lib/site-content.ts` (`ABOUT_PARAGRAPH`, `ABOUT_RING_TEXT`); edit and redeploy.

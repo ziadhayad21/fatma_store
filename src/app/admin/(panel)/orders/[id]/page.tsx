@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { formatDate, whatsappUrl } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
 import { fontCss, fontLabel } from "@/lib/name-fonts";
-import { STATUS_AR } from "@/lib/order-status";
+import { isOrderStatus, STATUS_AR } from "@/lib/order-status";
 import { paymentMethods } from "@/lib/payments";
 import type { FontId, ProductImage } from "@/lib/types";
 
@@ -31,8 +31,12 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   if (!UUID.test(id)) notFound();
   const { supabase } = await requireAdmin();
 
-  const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", id).maybeSingle();
+  const { data } = await supabase.from("orders")
+    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, order_items(*)")
+    .eq("id", id)
+    .maybeSingle();
   if (!data) notFound();
+  const status = String(data.status);
   const items = (data.order_items as Item[]).slice().sort((a, b) => a.name_snapshot.localeCompare(b.name_snapshot, "ar"));
 
   // product photos for the standard / name lines
@@ -66,11 +70,18 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
       <div className="adm-head">
         <div>
           <p className="adm-sub"><Link href="/admin/orders">← الطلبات</Link></p>
-          <h1>طلب <bdi dir="ltr">#{data.number}</bdi> <span className="adm-badge" data-s={data.status}>{STATUS_AR[data.status as keyof typeof STATUS_AR]}</span></h1>
+          <h1>طلب <bdi dir="ltr">#{data.number}</bdi> <span className="adm-badge" data-s={status}>{isOrderStatus(status) ? STATUS_AR[status] : status}</span></h1>
           <p className="adm-sub">{formatDate(data.created_at)}</p>
         </div>
-        <StatusForm id={data.id} status={data.status} />
+        <StatusForm id={data.id} status={status} />
       </div>
+
+      {status === "returned" && data.return_reason && (
+        <section className="adm-card adm-return-reason" aria-labelledby="order-return-reason">
+          <h2 id="order-return-reason" lang="en">Return Reason</h2>
+          <p dir="auto">{data.return_reason}</p>
+        </section>
+      )}
 
       <div className="adm-grid adm-cols-2" style={{ alignItems: "start" }}>
         <section className="adm-card" aria-label="بيانات العميل">

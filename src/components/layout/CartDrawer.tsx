@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCartProducts } from "@/components/cart/useCartProducts";
 import { useDesignUrls } from "@/components/cart/useDesignUrls";
+import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { removeCartLine } from "@/lib/cart-actions";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
@@ -11,6 +12,7 @@ import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { formatPrice } from "@/lib/format";
 import { unitPrice, variantText } from "@/lib/pricing";
+import { productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useUI } from "@/store/ui";
 
@@ -24,7 +26,7 @@ export function CartDrawer() {
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
-  const subtotal = lines.reduce((a, l) => a + unitPrice(products.get(l.productId)!, l.mode) * l.qty, 0);
+  const subtotal = roundMoney(lines.reduce((a, l) => a + unitPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
 
   return (
     <Drawer open={open} onClose={closeAll} side="left" label="سلة التسوق">
@@ -64,11 +66,11 @@ export function CartDrawer() {
                     <Image src={img.src} alt="" width={84} height={112} style={{ objectPosition: img.position }} />
                   )}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12 }}>
                       <Link href={`/products/${p.slug}`} className="card-name" onClick={closeAll}>
                         {p.name_ar}
                       </Link>
-                      <span className="price">{formatPrice(unitPrice(p, l.mode) * l.qty)}</span>
+                      <PriceDisplay {...productPrice(p, l.mode, l.qty)} />
                     </div>
                     <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</span>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>

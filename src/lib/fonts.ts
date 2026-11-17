@@ -9,3 +9,5 @@ const bold = Lalezar({ subsets: ["arabic", "latin"], weight: "400", display: "sw
 
 /** className that defines the four CSS variables used by lib/name-fonts.ts */
 export const nameFontVariables = `${ruqaa.variable} ${kufi.variable} ${naskh.variable} ${bold.variable}`;
+
+export const handwrittenFont = ruqaa.className;

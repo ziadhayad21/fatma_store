@@ -5,7 +5,7 @@ import { unitPrice, variantText } from "./core";
 import { createShippingModule, priceOrder, PricingError, type OrderLineInput, type PricingModule } from "./order";
 
 const products = new Map<string, Product>(
-  seedProducts.map((p) => [p.slug, { ...p, category_slug: "x", category_name: "x" }]),
+  seedProducts.map((p) => [p.slug, { ...p, ...(p.slug === "chef-apron" ? { base_price: 100, personalization_fee: 25 } : {}), category_slug: "x", category_name: "x" }]),
 );
 const base = { base_price: 100, personalization_fee: 25 };
 const line = (o: Partial<OrderLineInput> = {}): OrderLineInput => ({

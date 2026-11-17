@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Inter, Poppins } from "next/font/google";
 import { ProductCard } from "@/components/shop/ProductCard";
-import { CategoryIcon, Rays } from "@/components/ui/CategoryIcon";
-import { Icon } from "@/components/ui/Icon";
+import { Rays } from "@/components/ui/CategoryIcon";
+import { Tile } from "@/components/ui/Tile";
 import { getCategories, getCategory, getCollectionPage } from "@/lib/catalog";
 import type { Category, ProductSort } from "@/lib/types";
-
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-inter" });
-const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700"], display: "swap", variable: "--font-poppins" });
+import { collectionFonts } from "../_fonts";
 
 export async function generateMetadata({ params }: PageProps<"/collections/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -26,6 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/collections/[slug
 }
 
 const SORTS: ProductSort[] = ["new", "low", "high"];
+const productGrid = "grid grid-cols-2 gap-x-3 gap-y-6 lg:grid-cols-4 lg:gap-x-[24px] lg:gap-y-8";
+const productImageSizes = "(min-width: 1192px) 280px, (min-width: 1024px) calc(25vw - 18px), (min-width: 640px) calc(50vw - 22px), calc(50vw - 18px)";
 
 function parseSort(v: string | string[] | undefined): ProductSort {
   const s = Array.isArray(v) ? v[0] : v;
@@ -50,7 +48,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
   if (!category) notFound();
 
   return (
-    <div className={`collection-page ${inter.variable} ${poppins.variable}`}>
+    <div className={`collection-page ${collectionFonts}`}>
       <section className="wrap col-head">
         <nav className="crumb rise" aria-label="مسار الصفحة">
           <Link href="/">الرئيسية</Link>
@@ -70,7 +68,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
         <p className="collection-description rise d2">{category.description_ar}</p>
       </section>
 
-      <section className="wrap collection-products">
+      <section className="collection-products mx-auto max-w-[1192px] px-3 sm:px-4 lg:px-0">
         {/* searchParams (sort/page) are request-time: only the grid sits behind its own boundary */}
         <Suspense fallback={<GridSkeleton />}>
           <Grid slug={slug} category={category} searchParams={searchParams} />
@@ -110,60 +108,36 @@ async function Grid({
       {total === 0 ? (
         <p className="muted" style={{ textAlign: "center", padding: "64px 0" }}>لسه مفيش منتجات في القسم ده.</p>
       ) : (
-        <div className={`cgrid landscape-grid${showPromo ? " has-promo" : ""}`}>
+        <>
+          <div className={productGrid}>
+            {items.map((p, i) => (
+              <ProductCard key={p.slug} product={p} variant="listing" priority={i < 4} sizes={productImageSizes} />
+            ))}
+          </div>
           {showPromo && promoTarget && (
-            <div className="dept-landscape-card promo-landscape-card rise d3">
-              <Image
-                src={category.image}
-                alt={category.image_alt}
-                fill
-                sizes="(max-width: 900px) 100vw, 650px"
-                style={{ objectPosition: category.image_position, objectFit: "cover" }}
-              />
-              <div className="card-shade promo-shade" />
-
-              <div className="card-top-badge">
-                <CategoryIcon slug={category.slug} />
-                <span>{category.name_ar}</span>
-              </div>
-
-              <div className="promo-card-body">
-                <div className="promo-rays" aria-hidden="true">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb91f" strokeWidth="2.5" strokeLinecap="round">
-                    <path d="M4 14L2 17" />
-                    <path d="M7 9L4 6" />
-                    <path d="M14 6L16 2" />
-                  </svg>
-                </div>
-                <h2 className="promo-card-title">
-                  {category.promo_title_ar || "اطلب باسمك أو بتصميمك"}
-                </h2>
-                <Link href={`/products/${promoTarget.slug}`} className="btn-promo-action">
-                  <span>ابدأ التخصيص</span>
-                  <Icon name="arrow" size={16} nudge />
-                </Link>
-              </div>
-
-              <div className="card-doodle-heart" aria-hidden="true">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </div>
-            </div>
-          )}
-          {items.map((p, i) => (
-            <ProductCard
-              key={p.slug}
-              product={p}
-              variant="landscape"
-              categoryName={category.name_ar}
-              categorySlug={category.slug}
-              className="rise d3"
-              priority={i < 3}
-              sizes="(max-width: 900px) 100vw, 650px"
+            <Tile
+              className="dept-card mt-8 w-full max-w-[280px]"
+              href={`/products/${promoTarget.slug}`}
+              src={category.image}
+              alt={category.image_alt}
+              position={category.image_position}
+              title={category.promo_title_ar || "اطلب باسمك أو بتصميمك"}
+              accent={category.accent_color}
+              sizes="280px"
+              custom={
+                <>
+                  <span className="dept-badge dept-badge-0">
+                    {category.name_ar}
+                  </span>
+                  <span className="dept-shop">Shop ←</span>
+                  <h3 className="dept-title">
+                    {({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[category.slug] ?? category.name_ar}
+                  </h3>
+                </>
+              }
             />
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {pageCount > 1 && (
@@ -198,39 +172,30 @@ function OtherCategories({ current, categories }: { current: string; categories:
           </h2>
           <p className="collection-description">اكتشف مجموعاتنا التانية المميزة</p>
         </div>
-        <div className="g2 other-category-grid">
-          {others.map((c) => (
-            <div key={c.id} className="dept-landscape-card other-dept-card rv-clip">
-              <Image
-                src={c.image}
-                alt={c.image_alt || c.name_ar}
-                fill
-                sizes="(max-width: 900px) 100vw, 650px"
-                style={{ objectPosition: c.image_position, objectFit: "cover" }}
-              />
-              <div className="card-shade dept-shade" />
-
-              <div className="card-top-badge">
-                <CategoryIcon slug={c.slug} />
-                <span>{c.name_ar}</span>
-              </div>
-
-              <div className="dept-card-bottom-bar">
-                <Link href={`/collections/${c.slug}`} className="btn-shop-now">
-                  <span>تسوّق {c.name_ar}</span>
-                  <Icon name="arrow" size={16} nudge />
-                </Link>
-              </div>
-
-              {c.slug === "bags" && (
-                <div className="card-doodle-sun" aria-hidden="true">
-                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                    <path d="M24 6V2M24 46V42M6 24H2M46 24H42M11.29 11.29L8.46 8.46M39.54 39.54L36.71 36.71M11.29 36.71L8.46 39.54M39.54 8.46L36.71 11.29" stroke="#ffb91f" strokeWidth="2.5" strokeLinecap="round"/>
-                    <circle cx="24" cy="24" r="10" fill="#ffb91f" opacity="0.9"/>
-                  </svg>
-                </div>
-              )}
-            </div>
+        <div className="tiles dept-grid other-category-grid">
+          {others.map((c, index) => (
+            <Tile
+              key={c.id}
+              className="dept-card"
+              href={`/collections/${c.slug}`}
+              src={c.image}
+              alt={c.image_alt || c.name_ar}
+              position={c.image_position}
+              title={({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}
+              accent={c.accent_color}
+              sizes="(max-width: 900px) 100vw, 450px"
+              custom={
+                <>
+                  <span className={`dept-badge dept-badge-${index === 0 ? "0" : "1"}`}>
+                    {c.slug === "towels" ? "New" : "Best Seller"}
+                  </span>
+                  <span className="dept-shop">Shop ←</span>
+                  <h3 className="dept-title">
+                    {({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}
+                  </h3>
+                </>
+              }
+            />
           ))}
         </div>
       </div>
@@ -240,9 +205,9 @@ function OtherCategories({ current, categories }: { current: string; categories:
 
 function GridSkeleton() {
   return (
-    <div className="cgrid" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="sk" style={{ aspectRatio: "3/4" }} />
+    <div className={productGrid} aria-hidden="true">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="sk aspect-[7/8] w-full max-w-full rounded-[12px] lg:w-[280px] lg:rounded-[16px]" />
       ))}
     </div>
   );

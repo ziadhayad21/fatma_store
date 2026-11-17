@@ -13,17 +13,18 @@ type Props = {
   name: string;
   initial: ProductImage[];
   max: number;
+  onUploadingChange?: (uploading: boolean) => void;
 };
 
 /** Upload (public bucket), reorder, caption and remove images. Submits as a JSON hidden input. */
-export function ImagesField({ name, initial, max }: Props) {
+export function ImagesField({ name, initial, max, onUploadingChange }: Props) {
   const [images, setImages] = useState<ProductImage[]>(initial);
   const [busy, setBusy] = useState<{ name: string; pct: number } | null>(null);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
 
   async function upload(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || busy) return;
     setError("");
     for (const file of Array.from(files)) {
       if (images.length >= max) {
@@ -39,6 +40,7 @@ export function ImagesField({ name, initial, max }: Props) {
         continue;
       }
       setBusy({ name: file.name, pct: 0 });
+      onUploadingChange?.(true);
       try {
         const t = await requestProductImageUpload({ type: file.type, size: file.size });
         if (!t.ok) throw new Error(t.error);
@@ -49,6 +51,7 @@ export function ImagesField({ name, initial, max }: Props) {
       }
     }
     setBusy(null);
+    onUploadingChange?.(false);
     if (input.current) input.current.value = "";
   }
 
@@ -84,7 +87,7 @@ export function ImagesField({ name, initial, max }: Props) {
       <datalist id="img-pos">{POSITIONS.map((p) => <option key={p} value={p} />)}</datalist>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
-        <input ref={input} id={`${name}-file`} type="file" accept="image/png,image/jpeg,image/webp" multiple={max > 1} className="vh" onChange={(e) => void upload(e.target.files)} />
+        <input ref={input} id={`${name}-file`} type="file" accept="image/png,image/jpeg,image/webp" multiple={max > 1} className="vh" disabled={busy !== null} onChange={(e) => void upload(e.target.files)} />
         <label htmlFor={`${name}-file`} className="adm-btn ghost" style={{ cursor: "pointer" }} aria-disabled={images.length >= max}>
           + {max > 1 ? "إضافة صور" : "رفع صورة"}
         </label>
