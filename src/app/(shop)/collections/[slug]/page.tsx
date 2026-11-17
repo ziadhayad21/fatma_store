@@ -181,7 +181,7 @@ function OtherCategories({ current, categories }: { current: string; categories:
               src={c.image}
               alt={c.image_alt || c.name_ar}
               position={c.image_position}
-              title={({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}
+              title={c.name_ar}
               accent={c.accent_color}
               sizes="(max-width: 900px) 100vw, 450px"
               custom={
@@ -190,9 +190,7 @@ function OtherCategories({ current, categories }: { current: string; categories:
                     {c.slug === "towels" ? "New" : "Best Seller"}
                   </span>
                   <span className="dept-shop">Shop ←</span>
-                  <h3 className="dept-title">
-                    {({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[c.slug] ?? c.name_ar}
-                  </h3>
+                  <h3 className="dept-title">{c.name_ar}</h3>
                 </>
               }
             />

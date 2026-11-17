@@ -1,0 +1,162 @@
+.adm-order-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.adm-print-invoice-btn {
+  white-space: nowrap;
+}
+
+.adm-invoice {
+  display: none;
+}
+
+@media print {
+  @page fatima-invoice {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body:has(.adm-invoice) {
+    background: #fff;
+  }
+  .adm:has(.adm-invoice),
+  .adm:has(.adm-invoice) :is(.adm-shell, .adm-main) {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    background: #fff;
+    color: #111;
+  }
+  .adm:has(.adm-invoice) :is(.adm-side, .adm-order-screen, .adm-loading),
+  .adm-side,
+  .adm-order-screen {
+    display: none !important;
+  }
+  .adm-invoice {
+    page: fatima-invoice;
+    display: block;
+    color: #111;
+    background: #fff;
+    font-size: 10pt;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+  .adm .adm-invoice :is(h1, h2) {
+    color: #111;
+    margin: 0 0 5px;
+  }
+  .adm .adm-invoice h1 {
+    font-size: 20pt;
+  }
+  .adm .adm-invoice h2,
+  .invoice-items caption {
+    font-size: 11pt;
+    font-weight: 700;
+  }
+  .invoice-header,
+  .invoice-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6mm;
+    border-bottom: 1px solid #aaa;
+    padding-bottom: 4mm;
+    margin-bottom: 4mm;
+    break-inside: avoid;
+  }
+  .invoice-brand {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  .invoice-brand img {
+    width: 32mm;
+    height: auto;
+  }
+  .invoice-info > section {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .adm-invoice dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 3px 10px;
+    margin: 0;
+  }
+  .adm-invoice dd {
+    margin: 0;
+  }
+  .invoice-address {
+    white-space: pre-wrap;
+  }
+  .adm table.invoice-items {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .invoice-items caption {
+    text-align: start;
+    padding-bottom: 2mm;
+  }
+  .invoice-product-col {
+    width: 35%;
+  }
+  .invoice-qty-col {
+    width: 9%;
+  }
+  .invoice-items thead {
+    display: table-header-group;
+  }
+  .invoice-items tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .adm .invoice-items :is(th, td) {
+    background: #fff;
+    color: #111;
+    border-top: 0;
+    border-bottom: 1px solid #bdbdbd;
+    padding: 2mm;
+    font-size: 9pt;
+    white-space: normal;
+    vertical-align: middle;
+  }
+  .adm .invoice-items th {
+    border-bottom-color: #555;
+  }
+  .invoice-product {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+  }
+  .invoice-product > div {
+    min-width: 0;
+  }
+  .invoice-product img {
+    width: 9mm;
+    height: 11mm;
+    flex: none;
+    object-fit: cover;
+  }
+  .invoice-option {
+    font-size: 8pt;
+  }
+  .invoice-totals {
+    width: min(100%, 87mm);
+    margin: 5mm auto 0 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .invoice-totals dd {
+    text-align: end;
+  }
+  .invoice-total {
+    border-top: 1px solid #555;
+    padding-top: 2mm;
+    font-weight: 700;
+  }
+}

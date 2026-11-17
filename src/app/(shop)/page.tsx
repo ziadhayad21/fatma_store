@@ -55,11 +55,11 @@ export default async function Home() {
         <div className="wrap">
           <div className="sh dept-head rv">
             <div>
-              <span className="eyebrow">Departments</span>
+              <span className="eyebrow">الأقسام</span>
               <h2 className="h2">
-                Shop by{" "}
+                اختار من{" "}
                 <span className="mark">
-                  Department
+                  اقسامنا
                   <Doodle kind="underline" className="dl-underline" />
                 </span>
               </h2>

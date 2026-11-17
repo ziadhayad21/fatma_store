@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StatusForm } from "@/components/admin/StatusForm";
+import { Icon } from "@/components/ui/Icon";
 import { requireAdmin } from "@/lib/admin/auth";
 import { formatDate, orderDateBoundary } from "@/lib/admin/format";
 import { orderSearchFilter } from "@/lib/admin/search";
@@ -96,33 +97,76 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       <div className="adm-table-wrap adm-orders-table" role="region" aria-label="جدول الطلبات" tabIndex={0}>
         <table>
           <thead>
-            <tr><th>الرقم</th><th>التاريخ</th><th>العميل</th><th>الموبايل</th><th>المحافظة</th><th scope="col">العنوان الكامل</th><th>القطع</th><th>الإجمالي</th><th>الحالة</th><th scope="col">سبب الإرجاع</th></tr>
+            <tr>
+              <th scope="col">الرقم</th>
+              <th scope="col">التاريخ</th>
+              <th scope="col">العميل</th>
+              <th scope="col">الموبايل</th>
+              <th scope="col">المحافظة</th>
+              <th scope="col">العنوان الكامل</th>
+              <th scope="col">القطع</th>
+              <th scope="col">الإجمالي</th>
+              <th scope="col">الحالة</th>
+              <th scope="col">سبب الإرجاع</th>
+              <th scope="col" style={{ textAlign: "center" }}>الإجراءات</th>
+            </tr>
           </thead>
           <tbody>
             {(orders ?? []).map((o) => (
               <tr key={o.id}>
-                <td><Link href={`/admin/orders/${o.id}`}><b><bdi dir="ltr">#{o.number}</bdi></b></Link></td>
-                <td className="adm-date-cell"><time dateTime={o.created_at}>{formatDate(o.created_at)}</time></td>
-                <td className="adm-customer-cell">{o.customer_name}</td>
-                <td dir="ltr" style={{ textAlign: "right" }}>{o.phone}</td>
+                <td>
+                  <Link href={`/admin/orders/${o.id}`} className="adm-order-num-link">
+                    <b><bdi dir="ltr">#{o.number}</bdi></b>
+                  </Link>
+                </td>
+                <td className="adm-date-cell">
+                  <time dateTime={o.created_at}>{formatDate(o.created_at)}</time>
+                </td>
+                <td className="adm-customer-cell">
+                  <strong>{o.customer_name}</strong>
+                </td>
+                <td dir="ltr" style={{ textAlign: "right" }} className="adm-phone-cell">
+                  <a href={`tel:${o.phone}`} className="adm-phone-link">{o.phone}</a>
+                </td>
                 <td>{o.governorate}</td>
-                <td><p className="adm-order-address" dir="auto">{o.address}</p></td>
-                <td>{(o.order_items as { qty: number }[]).reduce((a, i) => a + i.qty, 0)}</td>
+                <td>
+                  <p className="adm-order-address" dir="auto" title={o.address}>{o.address}</p>
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  <span className="adm-qty-badge">{(o.order_items as { qty: number }[]).reduce((a, i) => a + i.qty, 0)}</span>
+                </td>
                 <td className="adm-total-cell">{formatPrice(Number(o.total))}</td>
                 <td>
-                  <div className="adm-order-status">
-                    <span className="adm-badge" data-s={o.status}>{isOrderStatus(o.status) ? STATUS_AR[o.status] : o.status}</span>
-                    <StatusForm id={o.id} status={o.status} compact />
-                  </div>
+                  <StatusForm id={o.id} status={o.status} compact />
                 </td>
                 <td>
-                  {o.status === "returned" && o.return_reason
-                    ? <p className="adm-order-return-reason" dir="auto">{o.return_reason}</p>
-                    : <span aria-label="لا يوجد سبب إرجاع">—</span>}
+                  {o.status === "returned" && o.return_reason ? (
+                    <span className="adm-order-return-reason" dir="auto" title={o.return_reason}>
+                      {o.return_reason}
+                    </span>
+                  ) : (
+                    <span className="adm-empty-dash" aria-label="لا يوجد سبب إرجاع">—</span>
+                  )}
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  <Link
+                    href={`/admin/orders/${o.id}`}
+                    className="adm-view-order-btn"
+                    title="عرض تفاصيل الطلب وطباعة الفاتورة"
+                  >
+                    <Icon name="eye" size={15} />
+                    <span>عرض التفاصيل</span>
+                  </Link>
                 </td>
               </tr>
             ))}
-            {(orders ?? []).length === 0 && <tr><td colSpan={10} className="adm-sub">مفيش طلبات مطابقة.</td></tr>}
+            {(orders ?? []).length === 0 && (
+              <tr>
+                <td colSpan={11} className="adm-sub" style={{ textAlign: "center", padding: "32px 16px" }}>
+                  مفيش طلبات مطابقة.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

@@ -769,7 +769,18 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  transform-origin: 50% 50%;
+  transform-box: view-box;
   transform: rotate(-12deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .about-badge .ringtxt {
+    animation: about-ring-turn 40s linear infinite;
+  }
+}
+@keyframes about-ring-turn {
+  from { transform: rotate(-12deg); }
+  to { transform: rotate(348deg); }
 }
 .about-badge .ringtxt text {
   /* The circular text path needs LTR layout for Chrome to position the Arabic glyphs. */

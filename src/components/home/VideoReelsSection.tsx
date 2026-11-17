@@ -203,7 +203,7 @@ export function VideoReelsSection() {
         {/* Section Header */}
         <div className="sh reels-head rv">
           <div>
-            <span className="eyebrow">Reels &amp; Stories</span>
+            <span className="eyebrow">فيديوهات وحكايات</span>
             <h2 className="h2" id="reels-heading">
               شوف منتجاتنا{" "}
               <span className="mark">
