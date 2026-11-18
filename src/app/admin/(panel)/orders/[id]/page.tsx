@@ -1,5 +1,5 @@
 import { DepositReview } from "@/components/admin/DepositReview";
-import { COLOR_LABEL, DEPOSIT_LABEL, PROOF_BUCKET, type DepositStatus } from "@/lib/product-rules";
+import { COLOR_LABEL, DEPOSIT_LABEL, PROOF_BUCKET, getItemCustomizationNote, type DepositStatus } from "@/lib/product-rules";
 import { roundMoney } from "@/lib/pricing/discount";
 import Image from "next/image";
 import Link from "next/link";
@@ -158,6 +158,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
           {items.map((it) => {
             const d = designs.get(it.id);
             const p = it.product_id ? photo.get(it.product_id) : undefined;
+            const itemNote = getItemCustomizationNote(data.customization_notes, it, items, p?.slug);
             return (
               <div className="adm-item" key={it.id}>
                 {it.mode === "design" && d?.view ? (
@@ -173,26 +174,40 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                   {it.color && <div className="adm-sub">اللون: {COLOR_LABEL[it.color]}</div>}
                   {it.mode === "standard" && <div className="adm-sub">زي ما هو (من غير تخصيص)</div>}
                   {it.mode === "name" && (
-                    <>
-                      <div className="adm-sub">باسمك{it.font ? ` — خط ${fontLabel(it.font)}` : ""}</div>
+                    <div style={{ marginTop: 8 }}>
+                      <div className="adm-sub"><b>نوع التخصيص:</b> كتابة الاسم{it.font ? ` (خط ${fontLabel(it.font)})` : ""}</div>
                       <span className="adm-nameprint" style={{ fontFamily: fontCss(it.font) }}>{it.text}</span>
                       <div className="adm-hint" dir="ltr" style={{ textAlign: "right" }}>{it.text}</div>
-                    </>
+                      {itemNote && (
+                        <div className="adm-customization-note">
+                          <span className="adm-customization-note-title">ملاحظات التخصيص:</span>
+                          <span className="adm-customization-note-text">{itemNote}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {it.mode === "design" && (
-                    <>
-                      <div className="adm-sub">بتصميم العميل</div>
-                      {d?.download ? (
-                        <a className="adm-btn sm" href={d.download} style={{ marginTop: 6 }}>تحميل الملف</a>
-                      ) : (
-                        <div className="adm-err">الملف مش متاح (اتمسح أو حصلت مشكلة).</div>
+                    <div style={{ marginTop: 8 }}>
+                      <div className="adm-sub"><b>نوع التخصيص:</b> تصميم العميل (رفع تصميم خاص)</div>
+                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        {d?.download ? (
+                          <a className="adm-btn sm" href={d.download} style={{ textDecoration: "none" }}>تحميل الملف</a>
+                        ) : (
+                          <div className="adm-err">الملف مش متاح (اتمسح أو حصلت مشكلة).</div>
+                        )}
+                        {d?.view && (
+                          <a className="adm-hint" href={d.view} target="_blank" rel="noreferrer" style={{ display: "inline-block" }}>
+                            فتح الصورة بالحجم الكامل ↗ (الرابط صالح لساعة)
+                          </a>
+                        )}
+                      </div>
+                      {itemNote && (
+                        <div className="adm-customization-note">
+                          <span className="adm-customization-note-title">ملاحظات التخصيص:</span>
+                          <span className="adm-customization-note-text">{itemNote}</span>
+                        </div>
                       )}
-                      {d?.view && (
-                        <a className="adm-hint" href={d.view} target="_blank" rel="noreferrer" style={{ display: "block", marginTop: 6 }}>
-                          فتح الصورة بالحجم الكامل ↗ (الرابط صالح لساعة)
-                        </a>
-                      )}
-                    </>
+                    </div>
                   )}
                 </div>
                 <div style={{ textAlign: "end" }}>

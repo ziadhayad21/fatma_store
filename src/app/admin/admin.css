@@ -1212,6 +1212,39 @@
   border-radius: 12px;
   overflow-wrap: anywhere;
 }
+.adm-customization-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #473D33;
+  background: #F4EFE6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+.adm-customization-note {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #FAF6EF;
+  border: 1px solid #E9E0D3;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #1E293B;
+}
+.adm-customization-note-title {
+  display: block;
+  font-weight: 700;
+  color: #473D33;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.adm-customization-note-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .adm-login {
   min-height: 100vh;
   display: grid;

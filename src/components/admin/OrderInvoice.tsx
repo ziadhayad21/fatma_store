@@ -1,4 +1,4 @@
-import { COLOR_LABEL, DEPOSIT_LABEL, type ProductColor, type DepositStatus } from "@/lib/product-rules";
+import { COLOR_LABEL, DEPOSIT_LABEL, getItemCustomizationNote, type ProductColor, type DepositStatus } from "@/lib/product-rules";
 import Image from "next/image";
 import { formatDate } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
@@ -106,6 +106,7 @@ export function OrderInvoice({ order, items, status, payment }: {
           {items.map((item) => {
             const photo = item.product_image_snapshot;
             const unit = Number(item.unit_price);
+            const itemNote = getItemCustomizationNote(order.customization_notes, item, items);
             return (
               <tr key={item.id}>
                 <td>
@@ -118,6 +119,11 @@ export function OrderInvoice({ order, items, status, payment }: {
                           : item.mode === "design" ? "بتصميم العميل" : "بدون تخصيص"}
                         {item.color && <> · اللون: {COLOR_LABEL[item.color]}</>}
                       </div>
+                      {itemNote && (
+                        <div className="invoice-option" style={{ color: "#473D33", marginTop: 2 }}>
+                          <b>ملاحظة التخصيص:</b> <span style={{ whiteSpace: "pre-wrap" }}>{itemNote}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
