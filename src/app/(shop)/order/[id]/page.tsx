@@ -1,3 +1,4 @@
+import { COLOR_LABEL, DEPOSIT_LABEL, type ProductColor, type DepositStatus } from "@/lib/product-rules";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -34,6 +35,9 @@ type OrderRow = {
   area: string;
   address: string;
   notes: string | null;
+  customization_notes: string | null;
+  deposit_amount: number;
+  deposit_status: DepositStatus | null;
   payment_method: string;
   status: string;
   subtotal: number;
@@ -48,6 +52,7 @@ type OrderRow = {
     mode: "standard" | "name" | "design";
     text: string | null;
     font: FontId | null;
+    color: ProductColor | null;
     design_path: string | null;
     unit_price: number;
     original_unit_price?: number | string | null;
@@ -63,7 +68,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
   // The order id is an unguessable UUID (the capability to view this page); read with the service role.
   const sb = createServiceClient();
   const { data } = await sb.from("orders")
-    .select("id, number, customer_name, phone, governorate, area, address, notes, payment_method, status, subtotal, shipping, total, created_at, order_items(*)")
+    .select("id, number, customer_name, phone, governorate, area, address, notes, payment_method, status, subtotal, shipping, total, created_at, customization_notes, deposit_amount, deposit_status, order_items(*)")
     .eq("id", id)
     .maybeSingle();
   if (!data) notFound();
@@ -98,6 +103,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
           <span className="ok-mark"><Icon name="check" size={30} /></span>
           <span className="eyebrow">طلب رقم</span>
           <h1 style={{ fontSize: "clamp(36px, 4vw, 56px)" }} dir="ltr">#{order.number}</h1>
+          {order.deposit_status && <p role="status">{DEPOSIT_LABEL[order.deposit_status]}{order.deposit_status !== "confirmed" && " — الطلب لا يتأكد إلا بعد مراجعة الإدارة للتحويل."}</p>}
           <p className="muted" style={{ margin: 0, fontSize: 16 }}>وصلنا طلبك. احتفظ برقم الطلب للرجوع إليه.</p>
         </div>
 
@@ -118,10 +124,11 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
                   <div style={{ fontWeight: 500 }}>{it.name_snapshot} <span className="muted">× {it.qty}</span></div>
                   <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>
                     {it.mode === "name"
-                      ? `باسم «${it.text}» — خط ${fontLabel(it.font)}`
+                      ? `باسم «${it.text}»${it.font ? ` — خط ${fontLabel(it.font)}` : ""}`
                       : it.mode === "design"
                         ? "بتصميمك"
                         : "زي ما هو"}
+                    {it.color && ` — اللون: ${COLOR_LABEL[it.color]}`}
                   </div>
                   {design && (
                     <a className="order-design-preview" href={design} target="_blank" rel="noreferrer">
@@ -148,10 +155,16 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
           <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(Number(order.total))}</span></div>
         </div>
 
+        {order.deposit_status && <div className="sum" style={{ position: "static", marginTop: 24 }}>
+          <div className="sl"><span>العربون المطلوب (30%)</span><span>{formatPrice(Number(order.deposit_amount))}</span></div>
+          <div className="sl"><span>العربون المدفوع والمؤكد</span><span>{formatPrice(order.deposit_status === "confirmed" ? Number(order.deposit_amount) : 0)}</span></div>
+          <div className="sl"><span>المتبقي بعد تأكيد العربون</span><span>{formatPrice(roundMoney(Number(order.total) - Number(order.deposit_amount)))}</span></div>
+        </div>}
         <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 24px", margin: "40px 0 0", fontSize: 15 }}>
           <dt className="muted">الاسم</dt><dd style={{ margin: 0 }}>{order.customer_name}</dd>
           <dt className="muted">الموبايل</dt><dd style={{ margin: 0 }} dir="ltr" lang="en" >{order.phone}</dd>
           <dt className="muted">العنوان</dt><dd style={{ margin: 0 }}>{order.governorate} — {order.area} — {order.address}</dd>
+          {order.customization_notes && <><dt className="muted">ملاحظات التخصيص (الفوط والمريلات)</dt><dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>{order.customization_notes}</dd></>}
           {order.notes && (<><dt className="muted">ملاحظات</dt><dd style={{ margin: 0 }}>{order.notes}</dd></>)}
           <dt className="muted">الدفع</dt><dd style={{ margin: 0 }}>{pay?.label ?? order.payment_method}</dd>
           <dt className="muted">الحالة</dt><dd style={{ margin: 0 }}>{isOrderStatus(order.status) ? STATUS_AR[order.status] : order.status}</dd>

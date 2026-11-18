@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seedCategories } from "@/lib/seed-categories";
 import { seedProducts } from "@/lib/seed-products";
 
+const PROOF = "proofs/2026-03/0b6c1f4e-8c0e-4f0a-9d53-0d1c3f3f2a11.png";
 const UP = "uploads/2026-03/0b6c1f4e-8c0e-4f0a-9d53-0d1c3f3f2a11.png";
 
 // ---- a tiny fake of the service-role client (only what placeOrder touches) ----
 const state = {
   fees: { القاهرة: 40, الجيزة: null } as Record<string, number | null>,
-  existing: new Set<string>([UP]),
+  existing: new Set<string>([UP, PROOF]),
   rpcCalls: [] as { name: string; args: { p_order: Record<string, unknown>; p_items: Record<string, unknown>[] } }[],
   rpcError: null as { message: string } | null,
   discounts: new Map<string, number>(),
@@ -20,6 +21,8 @@ function chain(resolve: () => unknown) {
   q.then = (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(resolve()).then(ok, bad);
   return q;
 }
+
+vi.mock("@/lib/rate-limit", () => ({ allow: async () => true, RATE_LIMITED_MESSAGE: "limited" }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   backendConfigured: () => true,
@@ -55,6 +58,7 @@ vi.mock("@/lib/supabase/admin", () => ({
             data: [...state.existing].filter((p) => p.endsWith(opts.search)).map((p) => ({ name: p.split("/").pop(), metadata: { size: 1000, mimetype: "image/png" } })),
             error: null,
           }),
+          download: async (path: string) => ({ data: state.existing.has(path) ? new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], { type: "image/png" }) : null, error: null }),
           remove: async () => ({}),
         }),
       },
@@ -66,9 +70,9 @@ vi.mock("@/lib/supabase/admin", () => ({
 const { placeOrder } = await import("./checkout");
 
 const customer = { name: "فاطمة أحمد", phone: "01012345678", governorate: "القاهرة", area: "مدينة نصر", address: "12 شارع التسعين", notes: "" };
-const std = (o = {}) => ({ productId: "chef-apron", mode: "standard", text: null, font: null, designPath: null, qty: 1, ...o });
+const std = (o = {}) => ({ productId: "chef-apron", mode: "standard", text: null, font: null, designPath: null, qty: 1, color: "black", ...o });
 const place = (o: Record<string, unknown> = {}) =>
-  placeOrder({ customer, lines: [std()], paymentMethod: "cod", ...o } as Parameters<typeof placeOrder>[0]);
+  placeOrder({ customer, lines: [std()], paymentMethod: "cod", depositMethod: "instapay", paymentProofPath: PROOF, ...o } as Parameters<typeof placeOrder>[0]);
 
 beforeEach(() => {
   state.rpcCalls.length = 0;
@@ -82,19 +86,18 @@ describe("placeOrder", () => {
       lines: [
         std({ qty: 2, price: 1, unitPrice: 1 }), // tampered prices are ignored (never read)
         std({ mode: "name", text: "  Fatma ", font: "ruqaa", qty: 3 }),
-        std({ productId: "polka-dot-bag", mode: "design", designPath: UP }),
+        std({ mode: "design", designPath: UP }),
       ],
     });
     expect(r).toMatchObject({ ok: true, number: 1001 });
     const { p_order, p_items } = state.rpcCalls[0].args;
     expect(state.rpcCalls[0].name).toBe("create_order");
     const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
-    const bag = seedProducts.find((p) => p.slug === "polka-dot-bag")!;
     const namedApron = apron.base_price + apron.personalization_fee;
-    const subtotal = apron.base_price * 2 + namedApron * 3 + bag.base_price + bag.personalization_fee;
+    const subtotal = apron.base_price * 2 + namedApron * 3 + apron.base_price + apron.personalization_fee;
     expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40, payment_method: "cod", phone: "01012345678" });
     expect(p_items).toHaveLength(3);
-    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: "ruqaa", unit_price: namedApron, qty: 3, design_path: null });
+    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: null, color: "black", unit_price: namedApron, qty: 3, design_path: null });
     expect(p_items[2]).toMatchObject({ mode: "design", design_path: UP, text: null, font: null });
     expect(p_items[0].product_id).toBe("00000000-0000-4000-8000-000000000001");
   });
@@ -119,6 +122,25 @@ describe("placeOrder", () => {
     expect(p_items[1]).toMatchObject({ unit_price: bag.base_price, original_unit_price: null, discount_percent: null });
   });
 
+  it("requires a real transfer proof and never accepts a client payment status or amount", async () => {
+    for (const paymentProofPath of [undefined, "../../x.png", PROOF.replace("0b6c", "ffff")]) {
+      expect((await place({ paymentProofPath })).ok).toBe(false);
+    }
+    expect(state.rpcCalls).toHaveLength(0);
+    expect((await place({ deposit_status: "confirmed", deposit_amount: 1, customizationNotes: "Make text smaller" })).ok).toBe(true);
+    const saved = state.rpcCalls[0].args.p_order;
+    expect(saved.deposit_status).toBe("submitted");
+    expect(saved.deposit_amount).toBe(Math.round(Number(saved.total) * 30) / 100);
+    expect(saved.customization_notes).toBe("Make text smaller");
+  });
+
+  it("keeps bags on normal checkout without a deposit or customization notes", async () => {
+    expect((await place({ lines: [std({ productId: "polka-dot-bag" })], paymentProofPath: undefined, depositMethod: undefined, customizationNotes: "ignore" })).ok).toBe(true);
+    expect(state.rpcCalls[0].args.p_order).toMatchObject({ deposit_amount: 0, deposit_status: null, payment_proof_path: null, customization_notes: null });
+    expect(state.rpcCalls[0].args.p_items[0]).toMatchObject({ mode: "standard", color: null });
+    expect((await place({ lines: [std({ productId: "polka-dot-bag", mode: "name", text: "Bag" })] })).ok).toBe(false);
+  });
+
   it("normalizes Arabic-digit phone numbers", async () => {
     await place({ customer: { ...customer, phone: "٠١٠١٢٣٤٥٦٧٨" } });
     expect(state.rpcCalls[0].args.p_order.phone).toBe("01012345678");
@@ -137,7 +159,7 @@ describe("placeOrder", () => {
   });
 
   it("rejects unknown products, bad qty, incomplete personalization, empty carts", async () => {
-    for (const line of [std({ productId: "ghost" }), std({ qty: 0 }), std({ qty: 51 }), std({ mode: "name", text: "", font: "ruqaa" }), std({ mode: "name", text: "x", font: null }), std({ mode: "design", designPath: null })]) {
+    for (const line of [std({ productId: "ghost" }), std({ qty: 0 }), std({ qty: 51 }), std({ mode: "name", text: "", font: "ruqaa" }), std({ color: "blue" }), std({ mode: "design", designPath: null })]) {
       expect((await place({ lines: [line] })).ok).toBe(false);
     }
     expect((await place({ lines: [] })).ok).toBe(false);

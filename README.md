@@ -202,3 +202,14 @@ Table `rate_limits` + function `hit_rate_limit` (migration `…0400`), used by `
 - Visual pass: `node --env-file=.env.local scripts/visual-pass.mjs shots-final` screenshots every storefront and admin page at 1440 and 390 and checks overflow, alt text, h1, broken images and request errors (it creates and removes a temporary admin, order and Cairo fee).
 - Supabase clients use `cache: "no-store"` on `fetch`: caching belongs to `use cache` + tags only. (Without it Next.js also kept raw REST responses across builds.)
 - The storefront treats out-of-band database edits (made directly in the Supabase dashboard) as fresh after at most 5 minutes; edits made in the admin are instant.
+
+
+## Product ordering rules and deposits
+
+Apply `supabase/migrations/20260101001100_product_order_rules.sql` alongside the application release (`npm run db:dry`, then `npm run db:push`). It adds order customization notes, item colors, deposit fields and an admin-only private `payment-proofs` storage bucket. Existing orders retain their original status and payment behavior.
+
+Rules are centralized in `src/lib/product-rules.ts` and use category slugs: `aprons` and `towels` offer Black/White/Pink instead of font selection, optional customization notes at checkout, and require a 30% deposit. `bags` allow standard orders only. Other categories retain their previous ordering options.
+
+For any cart containing an apron or towel, the deposit is 30% of the server-priced final order total after discounts, including shipping and every cart item. The balance is due on delivery. Customers select InstaPay or Wallet, transfer to **01155907797**, and must upload a valid PNG/JPG/WEBP receipt (maximum 10 MB) before submitting. Receipts are private and cannot be reused for another order.
+
+New deposit orders start as **Deposit Submitted**, never paid/verified. In `/admin/orders/<id>`, the admin reviews the transfer proof and explicitly confirms receipt of the required amount. Verification records the admin and timestamp; fulfillment is blocked at the database layer until **Deposit Confirmed**. **Deposit Pending** is available for unverified records without a receipt; customer checkout requires a receipt, so successful new submissions start at Submitted. Notes, colors, required/confirmed deposit amounts and balance appear in the order details and printable invoice. The migration does not retroactively impose deposits on historical orders.

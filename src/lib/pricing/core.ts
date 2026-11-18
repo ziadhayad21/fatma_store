@@ -1,3 +1,4 @@
+import { COLOR_LABEL, type ProductColor } from "@/lib/product-rules";
 import { fontLabel } from "@/lib/name-fonts";
 import type { FontId, OrderMode } from "@/lib/types";
 import { productPrice, type ProductPricing } from "./discount";
@@ -8,12 +9,14 @@ export function unitPrice(product: ProductPricing, mode: OrderMode): number {
 }
 
 export function variantText(l: {
+  color?: ProductColor | null;
   mode: OrderMode;
   text: string | null;
   font: FontId | null;
   designName: string | null;
 }): string {
-  if (l.mode === "name") return `باسم «${l.text ?? ""}» — خط ${fontLabel(l.font)}`;
-  if (l.mode === "design") return `بتصميمك: ${l.designName ?? "ملف مرفوع"}`;
-  return "زي ما هو";
+  const color = l.color ? ` — ${COLOR_LABEL[l.color]}` : "";
+  if (l.mode === "name") return `باسم «${l.text ?? ""}»${l.font ? ` — خط ${fontLabel(l.font)}` : ""}${color}`;
+  if (l.mode === "design") return `بتصميمك: ${l.designName ?? "ملف مرفوع"}${color}`;
+  return `زي ما هو${color}`;
 }

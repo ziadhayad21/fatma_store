@@ -73,3 +73,24 @@ describe("priceOrder", () => {
     expect(r.shipping).toBe(40);
   });
 });
+
+
+describe("category ordering rules", () => {
+  const product = (category_slug: string) => ({ ...products.get("chef-apron")!, category_slug });
+  it.each(["aprons", "towels"])("uses exactly the supported colors and no font for %s", async (category) => {
+    const catalog = new Map([["chef-apron", product(category)]]);
+    for (const color of ["black", "white", "pink"] as const) {
+      const result = await priceOrder({ lines: [line({ mode: "name", text: "Fatma", color, font: "kufi" })], products: catalog, governorate: "القاهرة", modules: [] });
+      expect(result.lines[0]).toMatchObject({ color, font: null });
+    }
+    await expect(priceOrder({ lines: [line()], products: catalog, governorate: "القاهرة", modules: [] })).rejects.toBeInstanceOf(PricingError);
+  });
+  it("prevents customized bag orders and strips irrelevant fields from normal bags", async () => {
+    const catalog = new Map([["chef-apron", product("bags")]]);
+    for (const mode of ["name", "design"] as const) {
+      await expect(priceOrder({ lines: [line({ mode, text: "Bag", font: "kufi", designPath: "x" })], products: catalog, governorate: "القاهرة", modules: [] })).rejects.toBeInstanceOf(PricingError);
+    }
+    const result = await priceOrder({ lines: [line({ color: "pink", text: "ignored" })], products: catalog, governorate: "القاهرة", modules: [] });
+    expect(result.lines[0]).toMatchObject({ color: null, text: null, font: null, designPath: null, unitPrice: 100 });
+  });
+});

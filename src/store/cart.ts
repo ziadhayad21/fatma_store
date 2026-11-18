@@ -11,13 +11,18 @@ export type CartLine = {
   font: FontId | null;
   designPath: string | null; // path in the private storage bucket
   designName: string | null; // original file name, display only
+  color?: import("@/lib/product-rules").ProductColor | null;
+  notes?: string | null;
   qty: number;
 };
 
 export type NewLine = Omit<CartLine, "key" | "qty"> & { qty?: number };
 
-export function lineKey(l: Pick<CartLine, "productId" | "mode" | "text" | "font" | "designPath">) {
-  return [l.productId, l.mode, l.text ?? "", l.font ?? "", l.designPath ?? ""].join("|");
+export function lineKey(l: Pick<CartLine, "productId" | "mode" | "text" | "font" | "designPath" | "color"> & { notes?: string | null }) {
+  const parts = [l.productId, l.mode, l.text ?? "", l.font ?? "", l.designPath ?? ""];
+  if (l.color) parts.push(l.color);
+  if (l.notes) parts.push(l.notes);
+  return parts.join("|");
 }
 
 type CartState = {

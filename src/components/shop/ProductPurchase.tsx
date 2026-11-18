@@ -7,6 +7,7 @@ import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
+import { productRules, COLORS, COLOR_LABEL, type ProductColor } from "@/lib/product-rules";
 import { normalizeName, validateName } from "@/lib/personalization";
 import { productPrice } from "@/lib/pricing/discount";
 import type { FontId, OrderMode, Product } from "@/lib/types";
@@ -45,10 +46,13 @@ function EditAware({ product }: { product: Product }) {
 function PurchaseForm({ product: p, initial }: { product: Product; initial: CartLine | null }) {
   const router = useRouter();
   const editing = initial !== null;
-  const [mode, setMode] = useState<OrderMode>(initial?.mode ?? "standard");
+  const rules = productRules(p);
+  const [color, setColor] = useState<ProductColor>(initial?.color ?? "black");
+  const [mode, setMode] = useState<OrderMode>(rules.customization ? initial?.mode ?? "standard" : "standard");
   const [qty, setQty] = useState(initial?.qty ?? 1);
   const [name, setName] = useState(initial?.text ?? "");
   const [font, setFont] = useState<FontId>(initial?.font ?? "ruqaa");
+  const [customizationNotes, setCustomizationNotes] = useState(initial?.notes ?? "");
   const [design, setDesign] = useState<DesignState>(
     initial?.designPath
       ? { status: "done", name: initial.designName ?? "تصميم", path: initial.designPath, previewUrl: null }
@@ -68,13 +72,14 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
         : "ارفع التصميم الأول عشان تقدر تضيفه للسلة.";
 
   function buildLine() {
+    const cleanNotes = (mode === "name" || mode === "design") && customizationNotes.trim() ? customizationNotes.trim() : null;
     if (mode === "name") {
-      return { productId: p.slug, mode, text: normalizeName(name), font, designPath: null, designName: null, qty } as const;
+      return { productId: p.slug, mode, text: normalizeName(name), font: rules.textile ? null : font, color: rules.textile ? color : null, designPath: null, designName: null, notes: cleanNotes, qty } as const;
     }
     if (mode === "design" && design.status === "done") {
-      return { productId: p.slug, mode, text: null, font: null, designPath: design.path, designName: design.name, qty } as const;
+      return { productId: p.slug, mode, text: null, font: null, designPath: design.path, designName: design.name, color: rules.textile ? color : null, notes: cleanNotes, qty } as const;
     }
-    return { productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, qty } as const;
+    return { productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: rules.textile ? color : null, notes: null, qty } as const;
   }
 
   function submit() {
@@ -115,7 +120,7 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
         </div>
       )}
 
-      <div className="rise d2" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {rules.customization && <div className="rise d2" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <span className="lbl" id="way">طريقة الطلب</span>
         <div role="group" aria-labelledby="way" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {WAYS.map((w) => {
@@ -125,17 +130,63 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
                 <span className="rd" aria-hidden="true"><i /></span>
                 <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                   <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
-                  <span className="muted" style={{ fontSize: 13 }}>{w.sub}</span>
+                  <span className="muted" style={{ fontSize: 13 }}>{rules.textile && w.id === "name" ? "اسم أو كلمة باللون اللي يعجبك" : w.sub}</span>
                 </span>
                 <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>{w.extra}</span>
               </button>
             );
           })}
         </div>
-      </div>
+      </div>}
 
-      {mode === "name" && <NamePanel name={name} font={font} onName={setName} onFont={setFont} />}
+      {rules.textile && (
+        <div className="panel">
+          <span className="lbl" id="color-l">اللون</span>
+          <div className="color-swatches" role="group" aria-labelledby="color-l">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`color-swatch color-swatch--${c}${color === c ? " on" : ""}`}
+                aria-pressed={color === c}
+                aria-label={COLOR_LABEL[c]}
+                title={COLOR_LABEL[c]}
+                onClick={() => setColor(c)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      {mode === "name" && <NamePanel name={name} font={font} onName={setName} onFont={setFont} hideFont={rules.textile} />}
       {mode === "design" && <DesignPanel value={design} onChange={setDesign} />}
+      {rules.customization && (mode === "name" || mode === "design") && (
+        <div className="panel" style={{ marginTop: -14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="customization-notes" className="lbl">
+              <span>ملاحظات إضافية للتخصيص (اختياري)</span>
+              <span className="muted" aria-live="polite">{[...customizationNotes].length}/500</span>
+            </label>
+            <textarea
+              id="customization-notes"
+              className="inp"
+              style={{
+                width: "100%",
+                minHeight: 76,
+                height: "auto",
+                padding: "10px 14px",
+                resize: "vertical",
+                fontSize: 14,
+                lineHeight: 1.5,
+                borderRadius: 0,
+              }}
+              maxLength={500}
+              placeholder="مثلاً: صغّر حجم الاسم، أو ضع التصميم في موضع محدد، أو أي تعليمات خاصة."
+              value={customizationNotes}
+              onChange={(e) => setCustomizationNotes(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="rise d3" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", gap: 10 }}>

@@ -1,3 +1,4 @@
+import { COLOR_LABEL, DEPOSIT_LABEL, type ProductColor, type DepositStatus } from "@/lib/product-rules";
 import Image from "next/image";
 import { formatDate } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
@@ -12,6 +13,7 @@ export type InvoiceItem = {
   mode: OrderMode;
   text: string | null;
   font: FontId | null;
+  color?: ProductColor | null;
   qty: number;
   unit_price: number | string;
   original_unit_price?: number | string | null;
@@ -27,6 +29,10 @@ type InvoiceOrder = {
   area: string;
   address: string;
   notes: string | null;
+  customization_notes?: string | null;
+  deposit_amount?: number | string;
+  deposit_status?: DepositStatus | null;
+  deposit_method?: string | null;
   subtotal: number | string;
   shipping: number | string;
   total: number | string;
@@ -73,6 +79,7 @@ export function OrderInvoice({ order, items, status, payment }: {
             <dt>المحافظة</dt><dd>{order.governorate}</dd>
             <dt>المنطقة</dt><dd>{order.area}</dd>
             <dt>العنوان</dt><dd className="invoice-address" dir="auto">{order.address}</dd>
+            {order.customization_notes && <><dt>ملاحظات التخصيص (الفوط والمريلات)</dt><dd className="invoice-address" dir="auto">{order.customization_notes}</dd></>}
             {order.notes && <><dt>ملاحظات</dt><dd className="invoice-address" dir="auto">{order.notes}</dd></>}
           </dl>
         </section>
@@ -107,8 +114,9 @@ export function OrderInvoice({ order, items, status, payment }: {
                     <div>
                       <strong dir="auto">{item.name_snapshot}</strong>
                       <div className="invoice-option">
-                        {item.mode === "name" ? <>باسم «<bdi>{item.text}</bdi>» · خط {fontLabel(item.font)}</>
+                        {item.mode === "name" ? <>باسم «<bdi>{item.text}</bdi>»{item.font ? ` · خط ${fontLabel(item.font)}` : ""}</>
                           : item.mode === "design" ? "بتصميم العميل" : "بدون تخصيص"}
+                        {item.color && <> · اللون: {COLOR_LABEL[item.color]}</>}
                       </div>
                     </div>
                   </div>
@@ -132,6 +140,14 @@ export function OrderInvoice({ order, items, status, payment }: {
           <dt>إجمالي الخصم</dt><dd>{formatPrice(discount)}</dd>
           <dt>المجموع الفرعي بعد الخصم</dt><dd>{formatPrice(subtotal)}</dd>
           <dt>الشحن</dt><dd>{formatPrice(Number(order.shipping))}</dd>
+          {order.deposit_status && <>
+            <dt>العربون المطلوب (30%)</dt><dd>{formatPrice(Number(order.deposit_amount))}</dd>
+            <dt>حالة العربون</dt><dd>{DEPOSIT_LABEL[order.deposit_status]}</dd>
+            <dt>طريقة تحويل العربون</dt><dd>{order.deposit_method === "instapay" ? "InstaPay" : "Wallet"}</dd>
+            <dt>العربون المدفوع والمؤكد</dt><dd>{formatPrice(order.deposit_status === "confirmed" ? Number(order.deposit_amount) : 0)}</dd>
+            <dt>المتبقي بعد تأكيد العربون</dt><dd>{formatPrice(roundMoney(Number(order.total) - Number(order.deposit_amount)))}</dd>
+            <dt>المبلغ المستحق حاليًا</dt><dd>{formatPrice(roundMoney(Number(order.total) - (order.deposit_status === "confirmed" ? Number(order.deposit_amount) : 0)))}</dd>
+          </>}
           <dt className="invoice-total">الإجمالي النهائي</dt><dd className="invoice-total">{formatPrice(Number(order.total))}</dd>
         </dl>
       </section>

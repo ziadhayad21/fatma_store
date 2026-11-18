@@ -1,5 +1,7 @@
 "use server";
 
+import { confirmPaymentProofUpload } from "@/app/actions/payment-proofs";
+import { productRules, depositAmount, isProductColor } from "@/lib/product-rules";
 import { confirmDesignUpload } from "@/app/actions/uploads";
 import { cleanCustomer, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/checkout";
 import { toProduct, PRODUCT_SELECT, type JoinedRow } from "@/lib/data/supabase-source";
@@ -20,6 +22,9 @@ export type PlaceOrderInput = {
   paymentMethod: unknown;
   /** honeypot: real users never fill it */
   website?: unknown;
+  customizationNotes?: unknown;
+  depositMethod?: unknown;
+  paymentProofPath?: unknown;
 };
 
 export type PlaceOrderResult =
@@ -43,6 +48,7 @@ function parseLines(raw: unknown[]): OrderLineInput[] | null {
       text: typeof l.text === "string" ? l.text : null,
       font: typeof l.font === "string" && FONTS.has(l.font) ? (l.font as OrderLineInput["font"]) : null,
       designPath: typeof l.designPath === "string" ? l.designPath : null,
+      color: isProductColor(l.color) ? l.color : null,
       qty: Number(l.qty),
     });
   }
@@ -118,7 +124,20 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     return { ok: false, error: "حصلت مشكلة. جرّب تاني." };
   }
 
-  // 4) payment (COD: nothing to charge)
+  const requiresDeposit = priced.lines.some((l) => productRules(products.get(l.productId)!).deposit);
+  const hasCustomization = priced.lines.some((l) => productRules(products.get(l.productId)!).customization);
+  const customizationNotes = hasCustomization && typeof input.customizationNotes === "string" && input.customizationNotes.trim()
+    ? input.customizationNotes.trim()
+    : null;
+  if (customizationNotes && customizationNotes.length > 1000) return { ok: false, error: "ملاحظات التخصيص بحد أقصى ١٠٠٠ حرف." };
+  let proofPath: string | null = null;
+  if (requiresDeposit) {
+    if (input.depositMethod !== "instapay" && input.depositMethod !== "wallet") return { ok: false, error: "اختار InstaPay أو Wallet لتحويل العربون." };
+    if (typeof input.paymentProofPath !== "string" || !(await confirmPaymentProofUpload(input.paymentProofPath)).ok) return { ok: false, error: "ارفع صورة إثبات تحويل العربون قبل إرسال الطلب." };
+    proofPath = input.paymentProofPath;
+  }
+
+  // 4) COD covers the balance; uploading a receipt never authorizes a payment.
   const pay = await getPaymentProvider(input.paymentMethod).authorize({ total: priced.total, phone: customer.phone });
   if (!pay.ok) return { ok: false, error: pay.error };
 
@@ -135,6 +154,11 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       subtotal: priced.subtotal,
       shipping: priced.shipping,
       total: priced.total,
+      customization_notes: customizationNotes,
+      deposit_amount: requiresDeposit ? depositAmount(priced.total) : 0,
+      deposit_status: requiresDeposit ? "submitted" : null,
+      deposit_method: requiresDeposit ? input.depositMethod : null,
+      payment_proof_path: proofPath,
     },
     p_items: priced.lines.map((l) => ({
       product_id: products.get(l.productId)!.id,
@@ -143,6 +167,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
       font: l.mode === "name" ? l.font : null,
       design_path: l.mode === "design" ? l.designPath : null,
+      color: l.color ?? null,
       unit_price: l.unitPrice,
       original_unit_price: l.originalUnitPrice,
       discount_percent: l.discountPercent,

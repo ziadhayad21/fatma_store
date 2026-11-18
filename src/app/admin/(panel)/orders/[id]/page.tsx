@@ -1,9 +1,13 @@
+import { DepositReview } from "@/components/admin/DepositReview";
+import { COLOR_LABEL, DEPOSIT_LABEL, PROOF_BUCKET, type DepositStatus } from "@/lib/product-rules";
+import { roundMoney } from "@/lib/pricing/discount";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrderInvoice, type InvoiceItem } from "@/components/admin/OrderInvoice";
 import { PrintInvoiceButton } from "@/components/admin/PrintInvoiceButton";
 import { StatusForm } from "@/components/admin/StatusForm";
+import { Icon } from "@/components/ui/Icon";
 import { requireAdmin } from "@/lib/admin/auth";
 import { formatDate, whatsappUrl } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
@@ -28,7 +32,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   const { supabase } = await requireAdmin();
 
   const { data } = await supabase.from("orders")
-    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, order_items(*)")
+    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, order_items(*)")
     .eq("id", id)
     .maybeSingle();
   if (!data) notFound();
@@ -60,6 +64,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
       }),
   );
 
+  const proof = data.payment_proof_path ? await supabase.storage.from(PROOF_BUCKET).createSignedUrl(data.payment_proof_path, 3600) : null;
   const pay = paymentMethods.find((m) => m.id === data.payment_method)?.label ?? data.payment_method;
 
   return (
@@ -98,6 +103,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
               <dt>المنطقة</dt><dd>{data.area}</dd>
               <dt>العنوان</dt><dd>{data.address}</dd>
               {data.notes && (<><dt>ملاحظات</dt><dd>{data.notes}</dd></>)}
+              {data.customization_notes && <><dt>ملاحظات التخصيص (الفوط والمريلات)</dt><dd style={{ whiteSpace: "pre-wrap" }}>{data.customization_notes}</dd></>}
               <dt>الدفع</dt><dd>{pay}</dd>
             </dl>
           </section>
@@ -107,11 +113,46 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
             <dl className="adm-dl">
               <dt>المنتجات</dt><dd>{formatPrice(Number(data.subtotal))}</dd>
               <dt>الشحن</dt><dd>{formatPrice(Number(data.shipping))}</dd>
-              <dt><b>الإجمالي</b></dt><dd><b>{formatPrice(Number(data.total))}</b> (يُدفع عند الاستلام)</dd>
+              <dt><b>الإجمالي</b></dt><dd><b>{formatPrice(Number(data.total))}</b> {data.deposit_status ? "" : "(يُدفع عند الاستلام)"}</dd>
             </dl>
           </section>
         </div>
 
+        {data.deposit_status && <section className="adm-card" style={{ marginTop: 16 }} aria-label="العربون">
+          <h2>العربون</h2>
+          <dl className="adm-dl">
+            <dt>الحالة</dt><dd>{DEPOSIT_LABEL[data.deposit_status as DepositStatus]}</dd>
+            <dt>العربون المطلوب (30%)</dt><dd>{formatPrice(Number(data.deposit_amount))}</dd>
+            <dt>المتبقي بعد تأكيد العربون</dt><dd>{formatPrice(roundMoney(Number(data.total) - Number(data.deposit_amount)))}</dd>
+            <dt>المبلغ المستحق حاليًا</dt><dd>{formatPrice(roundMoney(Number(data.total) - (data.deposit_status === "confirmed" ? Number(data.deposit_amount) : 0)))}</dd>
+            <dt>طريقة التحويل</dt><dd>{data.deposit_method === "instapay" ? "InstaPay" : "Wallet"}</dd>
+          </dl>
+          {proof?.data?.signedUrl ? (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+              <a
+                href={proof.data.signedUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "inline-block", maxWidth: "100%", borderRadius: 10, overflow: "hidden", border: "1px solid var(--adm-side-border)", background: "#fff", padding: 4 }}
+                title="فتح إثبات التحويل بالحجم الكامل"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- private signed URL */}
+                <img src={proof.data.signedUrl} alt="إثبات تحويل العربون" style={{ maxWidth: "100%", maxHeight: 320, objectFit: "contain", display: "block", borderRadius: 6 }} />
+              </a>
+              <a
+                href={proof.data.signedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="adm-btn ghost"
+                style={{ textDecoration: "none" }}
+              >
+                <Icon name="eye" size={17} />
+                <span>فتح إثبات التحويل بالحجم الكامل</span>
+              </a>
+            </div>
+          ) : <p>إثبات التحويل غير متاح.</p>}
+          {data.deposit_status === "submitted" && <DepositReview id={data.id} />}
+        </section>}
         <section className="adm-card" style={{ marginTop: 16 }} aria-label="المنتجات">
           <h2>المنتجات ({items.reduce((a, i) => a + i.qty, 0)} قطعة)</h2>
           {items.map((it) => {
@@ -129,10 +170,11 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                 )}
                 <div style={{ minWidth: 0 }}>
                   <div><b>{it.name_snapshot}</b> <span className="adm-sub">× {it.qty}</span></div>
+                  {it.color && <div className="adm-sub">اللون: {COLOR_LABEL[it.color]}</div>}
                   {it.mode === "standard" && <div className="adm-sub">زي ما هو (من غير تخصيص)</div>}
                   {it.mode === "name" && (
                     <>
-                      <div className="adm-sub">باسمك — خط {fontLabel(it.font)}</div>
+                      <div className="adm-sub">باسمك{it.font ? ` — خط ${fontLabel(it.font)}` : ""}</div>
                       <span className="adm-nameprint" style={{ fontFamily: fontCss(it.font) }}>{it.text}</span>
                       <div className="adm-hint" dir="ltr" style={{ textAlign: "right" }}>{it.text}</div>
                     </>

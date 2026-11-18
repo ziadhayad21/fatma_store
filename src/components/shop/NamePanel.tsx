@@ -9,9 +9,10 @@ type Props = {
   font: FontId;
   onName: (v: string) => void;
   onFont: (f: FontId) => void;
+  hideFont?: boolean;
 };
 
-export function NamePanel({ name, font, onName, onFont }: Props) {
+export function NamePanel({ name, font, onName, onFont, hideFont }: Props) {
   const len = [...name].length;
   const sample = name.trim() || "فاطمة";
   return (
@@ -32,7 +33,7 @@ export function NamePanel({ name, font, onName, onFont }: Props) {
           style={{ width: "100%", flex: "none" }}
         />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {!hideFont && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span className="lbl" id="font-l">الخط</span>
         <div className="fonts" role="group" aria-labelledby="font-l">
           {nameFonts.map((f) => (
@@ -49,7 +50,7 @@ export function NamePanel({ name, font, onName, onFont }: Props) {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

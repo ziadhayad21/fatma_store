@@ -87,6 +87,8 @@ const order = (over: Record<string, unknown> = {}) => ({
   address: "12 شارع التسعين",
   notes: "",
   payment_method: "cod",
+  deposit_method: "instapay",
+  payment_proof_path: "proofs/2026-11/11111111-1111-4111-8111-111111111111.png",
   subtotal: 250,
   shipping: 40,
   total: 290,
@@ -97,7 +99,8 @@ const item = (over: Record<string, unknown> = {}) => ({
   name_snapshot: "مريلة مطبخ Chef",
   mode: "name",
   text: "Fatma",
-  font: "ruqaa",
+  font: null,
+  color: "black",
   design_path: "",
   unit_price: 125,
   qty: 2,
@@ -114,6 +117,7 @@ beforeAll(async () => {
   await setup(`insert into auth.users (id, email) values ($1, 'admin@example.com'), ($2, 'customer@example.com')`, [ADMIN, CUSTOMER]);
   await setup(`select public.grant_admin('Admin@Example.com')`);
   await setup(`insert into storage.objects (bucket_id, name) values ('designs', 'uploads/a/b.png'), ('product-images', 'p.png')`);
+  await setup(`insert into storage.objects (bucket_id, name) values ('payment-proofs', 'proofs/2026-11/11111111-1111-4111-8111-111111111111.png'), ('payment-proofs', 'proofs/2026-11/22222222-2222-4222-8222-222222222222.png')`);
   await setup(`update public.shipping_rates set fee = 40 where governorate = 'القاهرة'`);
 });
 
@@ -151,7 +155,7 @@ describe("seed + constraints", () => {
     const p = await as("postgres", null, "select count(*)::int n from public.products");
     const g = await as<{ governorate: string; fee: string | null }>("postgres", null, "select * from public.shipping_rates");
     expect(c.rows[0]).toMatchObject({ n: 3 });
-    expect(p.rows[0]).toMatchObject({ n: 3 });
+    expect(p.rows[0]).toMatchObject({ n: 30 });
     expect(g.rows).toHaveLength(27);
     expect(g.rows.map((r) => r.governorate).sort()).toEqual([...governorates].sort());
     expect(g.rows.filter((r) => r.fee !== null).map((r) => r.governorate)).toEqual(["القاهرة"]); // set in this test file only
@@ -161,7 +165,7 @@ describe("seed + constraints", () => {
     const sql = readFileSync(path.resolve("supabase/migrations/20260101000300_seed.sql"), "utf8");
     await db.exec(sql);
     const p = await as("postgres", null, "select count(*)::int n from public.products");
-    expect(p.rows[0]).toMatchObject({ n: 3 });
+    expect(p.rows[0]).toMatchObject({ n: 30 });
   });
 
   it("has the required indexes", async () => {
@@ -180,7 +184,7 @@ describe("seed + constraints", () => {
 
 describe("anonymous visitors", () => {
   it("read active products, categories and shipping rates", async () => {
-    expect((await as("anon", null, "select * from public.products")).rows).toHaveLength(3);
+    expect((await as("anon", null, "select * from public.products")).rows).toHaveLength(30);
     expect((await as("anon", null, "select * from public.categories")).rows).toHaveLength(3);
     expect((await as("anon", null, "select * from public.shipping_rates")).rows).toHaveLength(27);
   });
@@ -189,7 +193,8 @@ describe("anonymous visitors", () => {
     await setup("update public.products set is_active = false where slug = 'chef-apron'");
     await setup("update public.categories set is_active = false where slug = 'bags'");
     const r = await as<{ slug: string }>("anon", null, "select slug from public.products");
-    expect(r.rows.map((x) => x.slug)).toEqual(["printed-kitchen-towel"]);
+    expect(r.rows.map((x) => x.slug)).toContain("printed-kitchen-towel");
+    expect(r.rows).toHaveLength(19);
     expect((await as("anon", null, "select * from public.categories")).rows).toHaveLength(2);
     await setup("update public.products set is_active = true where slug = 'chef-apron'");
     await setup("update public.categories set is_active = true where slug = 'bags'");
@@ -255,7 +260,7 @@ describe("admins", () => {
 
   it("update order status (valid values only) but cannot insert or delete orders", async () => {
     await setup("select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order()), JSON.stringify([item({ product_id: "", mode: "standard", text: "", font: "" })])]);
-    const ok = await as("authenticated", ADMIN, "update public.orders set status = 'prepared'");
+    const ok = await as("authenticated", ADMIN, "update public.orders set status = 'prepared' where deposit_status is null");
     expect(ok.affected).toBeGreaterThan(0);
     const bad = await as("authenticated", ADMIN, "update public.orders set status = 'lost'");
     expect(bad.code).toBe("23514");
@@ -301,8 +306,8 @@ describe("admins", () => {
 
   it("can see inactive products too", async () => {
     await setup("update public.products set is_active = false where slug = 'chef-apron'");
-    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(3);
-    expect((await as("authenticated", CUSTOMER, "select * from public.products")).rows).toHaveLength(2);
+    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(30);
+    expect((await as("authenticated", CUSTOMER, "select * from public.products")).rows).toHaveLength(29);
     await setup("update public.products set is_active = true where slug = 'chef-apron'");
   });
 });
@@ -317,7 +322,7 @@ describe("create_order (service role)", () => {
       await tx.exec("set local role service_role");
       const { rows: [{ id }] } = await tx.query<{ id: string }>(
         "select public.create_order($1::jsonb, $2::jsonb) ->> 'id' as id",
-        [JSON.stringify(order()), JSON.stringify(products.map((p) => item({ product_id: p.id })))],
+        [JSON.stringify(order({ payment_proof_path: "proofs/2026-11/22222222-2222-4222-8222-222222222222.png" })), JSON.stringify(products.map((p) => item({ product_id: p.id })))],
       );
       await tx.exec("reset role");
       await tx.query("update public.products set images = '[]' where id = $1", [products[0].id]);
@@ -339,7 +344,7 @@ describe("create_order (service role)", () => {
       "service_role",
       null,
       "select public.create_order($1::jsonb, $2::jsonb) as r",
-      [JSON.stringify(order()), JSON.stringify([item(), item({ mode: "standard", text: "", font: "", unit_price: 100, qty: 1 }), item({ mode: "design", text: "", font: "", design_path: "uploads/x/y.png" })])],
+      [JSON.stringify(order({ payment_proof_path: "proofs/2026-11/22222222-2222-4222-8222-222222222222.png" })), JSON.stringify([item(), item({ mode: "standard", text: "", font: "", unit_price: 100, qty: 1 }), item({ mode: "design", text: "", font: "", design_path: "uploads/x/y.png" })])],
     );
     expect(r.error).toBeUndefined();
     expect(r.rows[0].r.number).toBeGreaterThanOrEqual(1001);
@@ -420,5 +425,36 @@ describe("reviews + category accent colour", () => {
     expect(Object.fromEntries(c.rows.map((r) => [r.slug, r.accent_color]))).toEqual({ towels: "#EFE6D6", aprons: "#F6D6DC", bags: "#F2C94C" });
     expect((await as("authenticated", ADMIN, "update public.categories set accent_color = '#112233' where slug = 'bags'")).affected).toBe(1);
     expect((await as("anon", null, "update public.categories set accent_color = '#112233'")).code).toBe("42501");
+  });
+});
+
+
+describe("deposit payment gate", () => {
+  it("keeps receipts private and requires admin verification before fulfillment", async () => {
+    const { rows: [order] } = await db.query<{ id: string }>("select id from public.orders where deposit_status = 'submitted' limit 1");
+    expect(order).toBeDefined();
+    expect((await as("anon", null, "select * from storage.objects where bucket_id = 'payment-proofs'")).rows).toHaveLength(0);
+    expect((await as("authenticated", CUSTOMER, "select * from storage.objects where bucket_id = 'payment-proofs'")).rows).toHaveLength(0);
+    expect((await as("authenticated", ADMIN, "select * from storage.objects where bucket_id = 'payment-proofs'")).rows.length).toBeGreaterThan(0);
+    expect((await as("authenticated", ADMIN, "update public.orders set status = 'prepared' where id = $1", [order.id])).error).toMatch(/verify deposit/);
+    expect((await as("service_role", null, "update public.orders set deposit_status = 'confirmed' where id = $1", [order.id])).error).toMatch(/only an admin/);
+    expect((await as("authenticated", ADMIN, "update public.orders set deposit_status = null, deposit_amount = 0 where id = $1", [order.id])).error).toBeDefined();
+    const verified = await as("authenticated", ADMIN, "update public.orders set deposit_status = 'confirmed' where id = $1 returning deposit_status, deposit_confirmed_by, deposit_confirmed_at", [order.id]);
+    expect(verified.error).toBeUndefined();
+    expect(verified.rows[0]).toMatchObject({ deposit_status: "confirmed", deposit_confirmed_by: ADMIN });
+    expect(verified.rows[0].deposit_confirmed_at).toBeTruthy();
+    // The helper rolls the update back, so a receipt alone still remains unverified.
+    const { rows } = await db.query<{ deposit_status: string; deposit_amount: string; total: string }>("select deposit_status, deposit_amount, total from public.orders where id = $1", [order.id]);
+    expect(rows[0].deposit_status).toBe("submitted");
+    expect(Number(rows[0].deposit_amount)).toBe(Number(rows[0].total) * 0.3);
+  });
+
+  it("rejects receipt reuse and missing proofs in the atomic order RPC", async () => {
+    const before = (await db.query<{ n: number }>("select count(*)::int n from public.orders")).rows[0].n;
+    for (const payment_proof_path of [null, "proofs/2026-11/33333333-3333-4333-8333-333333333333.png", order().payment_proof_path]) {
+      const result = await as("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order({ payment_proof_path })), JSON.stringify([item()])]);
+      expect(result.error).toBeDefined();
+    }
+    expect((await db.query<{ n: number }>("select count(*)::int n from public.orders")).rows[0].n).toBe(before);
   });
 });

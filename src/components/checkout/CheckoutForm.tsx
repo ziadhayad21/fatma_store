@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentProof } from "./PaymentProof";
+import { productRules, depositAmount, DEPOSIT_NUMBER } from "@/lib/product-rules";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,6 +34,9 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const designUrls = useDesignUrls(storedLines.map((l) => l.designPath));
 
   const [form, setForm] = useState<CustomerInput>(EMPTY);
+  const [depositMethod, setDepositMethod] = useState("instapay");
+  const [proofPath, setProofPath] = useState<string | null>(null);
+  const [proofBusy, setProofBusy] = useState(false);
   const [website, setWebsite] = useState(""); // honeypot
   const [errors, setErrors] = useState<CustomerErrors>({});
   const [formError, setFormError] = useState("");
@@ -39,6 +44,16 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const lines = storedLines.filter((l) => products.has(l.productId));
+  const customizationNotes = lines
+    .filter((l) => (l.mode === "name" || l.mode === "design") && l.notes?.trim())
+    .map((l) => {
+      const p = products.get(l.productId);
+      const name = p ? p.name_ar : l.productId;
+      return lines.filter((x) => x.notes?.trim()).length > 1
+        ? `${name}: ${l.notes!.trim()}`
+        : l.notes!.trim();
+    })
+    .join("\n\n") || null;
   // until localStorage was read we do not know whether the cart is empty: show a placeholder of about the
   // final height instead of flashing the empty state (that made the footer jump)
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
@@ -47,6 +62,8 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const rate = rates.find((r) => r.governorate === form.governorate);
   const shippingKnown = !!rate && rate.fee !== null;
   const total = roundMoney(itemsTotal + printTotal + (shippingKnown ? rate!.fee! : 0));
+  const requiresDeposit = lines.some((l) => productRules(products.get(l.productId)!).deposit);
+  const deposit = requiresDeposit ? depositAmount(total) : 0;
   const shippingBlocked = !!form.governorate && !shippingKnown;
 
   const set = (k: keyof CustomerInput) => (v: string) => {
@@ -69,16 +86,21 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
       setErrors({ governorate: "الشحن لمحافظتك مش متاح دلوقتي." });
       return;
     }
+    if (requiresDeposit && (!proofPath || proofBusy)) { setFormError("ارفع صورة إثبات تحويل العربون قبل إرسال الطلب."); return; }
     start(async () => {
       const res = await placeOrder({
         customer,
         website,
+        customizationNotes,
+        depositMethod,
+        paymentProofPath: proofPath,
         paymentMethod: defaultPaymentMethod,
         lines: lines.map((l) => ({
           productId: l.productId,
           mode: l.mode,
           text: l.text,
           font: l.font,
+          color: l.color,
           designPath: l.designPath,
           qty: l.qty,
         })),
@@ -206,7 +228,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
             </fieldset>
 
             <fieldset className="co-sec">
-              <legend>طريقة الدفع</legend>
+              <legend>{requiresDeposit ? "دفع المتبقي بعد العربون" : "طريقة الدفع"}</legend>
               <div role="radiogroup" aria-label="طريقة الدفع" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {paymentMethods.map((m) => (
                   <label key={m.id} className="pay-card">
@@ -214,16 +236,25 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                     <span className="rd" aria-hidden="true" style={{ borderColor: "var(--ink)" }}><i style={{ transform: "scale(1)" }} /></span>
                     <span style={{ display: "flex", flexDirection: "column" }}>
                       <span style={{ fontSize: 15, fontWeight: 500 }}>{m.label}</span>
-                      <span className="muted" style={{ fontSize: 13 }}>{m.description}</span>
+                      <span className="muted" style={{ fontSize: 13 }}>{requiresDeposit ? "العربون 30% مقدمًا عبر InstaPay أو Wallet، والباقي عند الاستلام." : m.description}</span>
                     </span>
                   </label>
                 ))}
               </div>
             </fieldset>
 
+            {requiresDeposit && <fieldset className="co-sec" disabled={pending}>
+              <legend>العربون المطلوب (30%)</legend>
+              <p>حوّل العربون عبر InstaPay أو Wallet إلى <bdi dir="ltr">{DEPOSIT_NUMBER}</bdi>.</p>
+              <p>العربون 30% من إجمالي الطلب بعد الخصم شامل الشحن. الطلب لا يتأكد إلا بعد مراجعة الإدارة للتحويل.</p>
+              <p>الإجمالي: {shippingKnown ? formatPrice(total) : "—"}<br />العربون المطلوب: {shippingKnown ? formatPrice(deposit) : "—"}<br />المتبقي بعد تأكيد العربون: {shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</p>
+              <label htmlFor="deposit-method">طريقة تحويل العربون</label>
+              <select id="deposit-method" className="sel" value={depositMethod} onChange={(e) => setDepositMethod(e.target.value)}><option value="instapay">InstaPay</option><option value="wallet">Wallet</option></select>
+              <PaymentProof onChange={setProofPath} onBusy={setProofBusy} />
+            </fieldset>}
             {formError && <p className="err" role="alert" style={{ fontSize: 14, margin: 0 }}>{formError}</p>}
-            <Button type="submit" arrow block disabled={pending || shippingBlocked} aria-busy={pending}>
-              {pending ? "بنسجّل طلبك…" : "تأكيد الطلب"}
+            <Button type="submit" arrow block disabled={pending || shippingBlocked || (requiresDeposit && (!proofPath || proofBusy))} aria-busy={pending}>
+              {pending ? "بنسجّل طلبك…" : requiresDeposit ? "إرسال الطلب لمراجعة العربون" : "تأكيد الطلب"}
             </Button>
           </form>
 
@@ -267,6 +298,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
               <span>الإجمالي</span>
               <span>{shippingKnown ? formatPrice(total) : "—"}</span>
             </div>
+            {requiresDeposit && <><div className="sl"><span>العربون (30%)</span><span>{shippingKnown ? formatPrice(deposit) : "—"}</span></div><div className="sl"><span>المتبقي بعد تأكيد العربون</span><span>{shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</span></div></>}
             <span className="muted" style={{ fontSize: 12 }}>الإجمالي النهائي بيتحسب على السيرفر وقت تأكيد الطلب.</span>
           </aside>
         </div>

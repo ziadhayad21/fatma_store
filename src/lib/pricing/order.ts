@@ -1,4 +1,5 @@
 import "server-only";
+import { productRules, isProductColor, type ProductColor } from "@/lib/product-rules";
 import { MAX_QTY } from "@/lib/limits";
 import { isFontId, normalizeName, validateName } from "@/lib/personalization";
 import type { FontId, OrderMode, Product } from "@/lib/types";
@@ -19,6 +20,7 @@ export type OrderLineInput = {
   text: string | null;
   font: FontId | null;
   designPath: string | null;
+  color?: ProductColor | null;
   qty: number;
 };
 
@@ -67,14 +69,18 @@ export function cleanLine(line: OrderLineInput, product: Product | undefined): O
   if (!Number.isInteger(line.qty) || line.qty < 1 || line.qty > MAX_QTY) {
     throw new PricingError("الكمية غير صحيحة", "bad_line");
   }
+  const rules = productRules(product);
+  if (!rules.customization && line.mode !== "standard") throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
+  if (rules.textile && !isProductColor(line.color)) throw new PricingError("اختار اللون", "bad_line");
+  line = { ...line, color: rules.textile ? line.color : null };
   if (line.mode === "standard") {
     return { ...line, text: null, font: null, designPath: null };
   }
   if (line.mode === "name") {
     const v = validateName(line.text ?? "");
     if (!v.ok) throw new PricingError(v.error, "bad_line");
-    if (!isFontId(line.font)) throw new PricingError("اختار الخط", "bad_line");
-    return { ...line, text: normalizeName(line.text ?? ""), designPath: null };
+    if (!rules.textile && !isFontId(line.font)) throw new PricingError("اختار الخط", "bad_line");
+    return { ...line, text: normalizeName(line.text ?? ""), font: rules.textile ? null : line.font, designPath: null };
   }
   if (line.mode === "design") {
     if (!line.designPath) throw new PricingError("ارفع التصميم", "bad_line");

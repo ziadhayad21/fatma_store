@@ -1,3 +1,4 @@
+import { DEPOSIT_LABEL, type DepositStatus } from "@/lib/product-rules";
 import Link from "next/link";
 import { StatusForm } from "@/components/admin/StatusForm";
 import { Icon } from "@/components/ui/Icon";
@@ -34,7 +35,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   let query = supabase
     .from("orders")
-    .select("id, number, customer_name, phone, governorate, address, status, return_reason, total, created_at, order_items(qty)", { count: "exact" })
+    .select("id, number, customer_name, phone, governorate, address, status, deposit_status, return_reason, total, created_at, order_items(qty)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE, page * PAGE - 1);
   if (status) query = query.eq("status", status);
@@ -137,7 +138,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                 </td>
                 <td className="adm-total-cell">{formatPrice(Number(o.total))}</td>
                 <td>
-                  <StatusForm id={o.id} status={o.status} compact />
+                  <StatusForm id={o.id} status={o.status} compact />{o.deposit_status && <small>{DEPOSIT_LABEL[o.deposit_status as DepositStatus]}</small>}
                 </td>
                 <td>
                   {o.status === "returned" && o.return_reason ? (
