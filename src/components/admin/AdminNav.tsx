@@ -66,6 +66,17 @@ const items = [
     ),
   },
   {
+    href: "/admin/suggestions",
+    label: "Suggestions",
+    labelAr: "الاقتراحات",
+    badge: "suggestions" as const,
+    icon: (
+      <svg className="adm-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/subscribers",
     label: "Subscribers",
     labelAr: "المشتركين",
@@ -77,7 +88,7 @@ const items = [
   },
 ];
 
-export function AdminNav() {
+export function AdminNav({ badges = {} }: { badges?: { suggestions?: number } }) {
   const path = usePathname();
   return (
     <nav aria-label="Admin Navigation" className="adm-nav">
@@ -88,6 +99,9 @@ export function AdminNav() {
             {i.icon}
             <span className="adm-nav-label">{i.label}</span>
             <span className="adm-nav-label-sub">{i.labelAr}</span>
+            {"badge" in i && i.badge && !!badges[i.badge] && (
+              <span className="adm-nav-badge" aria-label={`${badges[i.badge]} غير مقروء`}>{badges[i.badge]! > 99 ? "99+" : badges[i.badge]}</span>
+            )}
           </Link>
         );
       })}

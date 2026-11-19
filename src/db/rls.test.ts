@@ -605,3 +605,43 @@ describe("old admin after migration …1200 (base_price only)", () => {
     expect(Object.keys(await colorsOf(p.id)).sort()).toEqual(["black", "pink"]);
   });
 });
+
+describe("suggestions (migration …1300)", () => {
+  const anyOrder = async () => (await db.query<{ id: string }>("select id from public.orders limit 1")).rows[0].id;
+
+  it("nobody but the server (service role) can insert; anon and customers cannot read", async () => {
+    expect((await as("anon", null, "insert into public.suggestions (text) values ('x')")).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "insert into public.suggestions (text) values ('x')")).code).toBe("42501");
+    expect((await as("authenticated", ADMIN, "insert into public.suggestions (text) values ('x')")).code).toBe("42501");
+    const ok = await as("service_role", null, "insert into public.suggestions (text, order_id) values ('عايزين مريلة أطفال', $1)", [await anyOrder()], true);
+    expect(ok.error).toBeUndefined();
+    expect((await as("anon", null, "select * from public.suggestions")).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "select * from public.suggestions")).rows).toHaveLength(0);
+    expect((await as("authenticated", CUSTOMER, "update public.suggestions set is_read = true")).affected).toBe(0);
+  });
+
+  it("validates text in the database", async () => {
+    for (const text of ["", "   ", "x".repeat(501)]) {
+      expect((await as("service_role", null, "insert into public.suggestions (text) values ($1)", [text])).error).toBeDefined();
+    }
+  });
+
+  it("admins read and mark as read, but cannot edit or delete what customers sent", async () => {
+    const r = await as<{ text: string; is_read: boolean }>("authenticated", ADMIN, "select text, is_read from public.suggestions");
+    expect(r.rows).toEqual([{ text: "عايزين مريلة أطفال", is_read: false }]);
+    expect((await as("authenticated", ADMIN, "update public.suggestions set is_read = true")).affected).toBe(1);
+    expect((await as("authenticated", ADMIN, "update public.suggestions set text = 'changed'")).error).toMatch(/only is_read/);
+    expect((await as("authenticated", ADMIN, "update public.suggestions set order_id = null")).affected).toBe(1); // unlinking is allowed (FK set null path)
+    expect((await as("authenticated", ADMIN, "delete from public.suggestions")).code).toBe("42501");
+  });
+
+  it("keeps the suggestion when its order is deleted", async () => {
+    const order = await anyOrder();
+    await setup("insert into public.suggestions (text, order_id) values ('tied to an order', $1)", [order]);
+    await db.exec("begin");
+    await db.query("delete from public.orders where id = $1", [order]);
+    const left = await db.query<{ order_id: string | null }>("select order_id from public.suggestions where text = 'tied to an order'");
+    await db.exec("rollback");
+    expect(left.rows).toEqual([{ order_id: null }]);
+  });
+});

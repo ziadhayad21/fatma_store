@@ -2320,3 +2320,146 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------------- order success popup (checkout) */
+.op-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: var(--page);
+  color: var(--ink);
+  box-shadow: 0 24px 64px -16px rgba(20, 20, 20, 0.35);
+  overflow: auto;
+}
+.op-dialog[open] {
+  animation: op-in 0.28s var(--ease) both;
+}
+.op-dialog::backdrop {
+  background: rgba(20, 20, 20, 0.45);
+  animation: op-fade 0.28s ease both;
+}
+@keyframes op-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes op-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .op-dialog[open],
+  .op-dialog::backdrop { animation: none; }
+}
+.op-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 28px 28px;
+  text-align: center;
+}
+.op-close {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+}
+.op-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #e8efe5;
+  color: #3f6b35;
+}
+.op-title {
+  margin: 6px 0 0;
+  font-size: 24px;
+}
+.op-number {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.op-number bdi {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.op-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.op-suggest {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  text-align: start;
+}
+.op-suggest textarea.inp {
+  height: auto;
+  min-height: 84px;
+  padding: 10px 14px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.op-suggest .btn {
+  align-self: flex-start;
+}
+.op-thanks {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #e8efe5;
+  color: #3f6b35;
+  font-size: 14px;
+  font-weight: 500;
+}
+.op-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.op-details {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.op-details:hover {
+  color: var(--ink);
+}
+/* after the popup is closed, on the checkout page */
+.op-after {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .op-card {
+    padding: 32px 18px 22px;
+  }
+}

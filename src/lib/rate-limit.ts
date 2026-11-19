@@ -8,6 +8,7 @@ export const LIMITS = {
   newsletter: { windowSec: 3600, max: 5 },
   order: { windowSec: 3600, max: 10 },
   login: { windowSec: 600, max: 10 },
+  suggestion: { windowSec: 3600, max: 5 },
 } as const;
 
 export const RATE_LIMITED_MESSAGE = "محاولات كتير في وقت قصير. استنى شوية وجرّب تاني.";

@@ -1,10 +1,10 @@
 "use client";
 
+import { OrderPlacedDialog, type PlacedOrder } from "./OrderPlacedDialog";
 import { PaymentProof } from "./PaymentProof";
 import { productRules, depositAmount, DEPOSIT_NUMBER } from "@/lib/product-rules";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useTransition } from "react";
 import { placeOrder } from "@/app/actions/checkout";
 import { useCartProducts } from "@/components/cart/useCartProducts";
@@ -25,7 +25,6 @@ import { useCartHydrated } from "@/store/useStoreHydrated";
 const EMPTY: CustomerInput = { name: "", phone: "", governorate: "", area: "", address: "", notes: "" };
 
 export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
-  const router = useRouter();
   const uid = useId();
   const storedLines = useCart((s) => s.lines);
   const clear = useCart((s) => s.clear);
@@ -41,6 +40,9 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const [errors, setErrors] = useState<CustomerErrors>({});
   const [formError, setFormError] = useState("");
   const [pending, start] = useTransition();
+  // set once the order is saved: the success popup replaces the old redirect to /order/[id]
+  const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+  const [popupOpen, setPopupOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const lines = storedLines.filter((l) => products.has(l.productId));
@@ -105,8 +107,11 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
         })),
       });
       if (res.ok) {
+        // The order is saved: empty the cart and stay here. Nothing re-submits on refresh/back
+        // (placeOrder runs only from this click, and the cart is now empty).
         clear();
-        router.push(`/order/${res.orderId}`);
+        setPlaced({ orderId: res.orderId, number: res.number, deposit: res.deposit });
+        setPopupOpen(true);
         return;
       }
       setFormError(res.error);
@@ -138,7 +143,22 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
       </nav>
       <h1 className="rise" style={{ fontSize: "clamp(36px, 4vw, 56px)", margin: "8px 0 40px" }}>إتمام الطلب</h1>
 
-      {isEmpty && (
+      {placed && (
+        <OrderPlacedDialog order={placed} open={popupOpen} onClose={() => setPopupOpen(false)} />
+      )}
+
+      {placed && isEmpty && (
+        <div className="empty op-after rise">
+          <h2 style={{ fontSize: 26 }}>تم استلام طلبك <bdi dir="ltr">#{placed.number}</bdi></h2>
+          <p className="muted" style={{ margin: 0 }}>
+            {placed.deposit ? "هنراجع تحويل العربون ونتواصل معاك لتأكيد الطلب." : "شكرًا لطلبك! هنتواصل معاك قريب لتأكيد الطلب."}
+          </p>
+          <Button href="/">كمّل تسوّق</Button>
+          <Link href={`/order/${placed.orderId}`} className="op-details">تفاصيل الطلب</Link>
+        </div>
+      )}
+
+      {!placed && isEmpty && (
         <div className="empty rise">
           <span style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--image)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon name="bag" size={21} />

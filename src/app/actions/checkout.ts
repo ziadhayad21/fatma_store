@@ -28,7 +28,7 @@ export type PlaceOrderInput = {
 };
 
 export type PlaceOrderResult =
-  | { ok: true; orderId: string; number: number }
+  | { ok: true; orderId: string; number: number; /** the order needs a deposit (30%) */ deposit: boolean }
   | { ok: false; error: string; fieldErrors?: CustomerErrors };
 
 const FONTS = new Set(["ruqaa", "kufi", "naskh", "bold", "modern"]);
@@ -207,5 +207,5 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   } catch (e) {
     console.error("onOrderPlaced failed", e);
   }
-  return { ok: true, orderId: res.id, number: Number(res.number) };
+  return { ok: true, orderId: res.id, number: Number(res.number), deposit: requiresDeposit };
 }

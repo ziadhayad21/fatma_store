@@ -1,25 +1,27 @@
-import { DepositReview } from "@/components/admin/DepositReview";
-import { colorLabel, DEPOSIT_LABEL, PROOF_BUCKET, getItemCustomizationNote, type DepositStatus } from "@/lib/product-rules";
-import { roundMoney } from "@/lib/pricing/discount";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DepositReview } from "@/components/admin/DepositReview";
 import { OrderInvoice, type InvoiceItem } from "@/components/admin/OrderInvoice";
 import { PrintInvoiceButton } from "@/components/admin/PrintInvoiceButton";
 import { StatusForm } from "@/components/admin/StatusForm";
 import { Icon } from "@/components/ui/Icon";
 import { requireAdmin } from "@/lib/admin/auth";
-import { formatDate, whatsappUrl } from "@/lib/admin/format";
+import { formatDay, whatsappUrl } from "@/lib/admin/format";
+import { itemOptionLine } from "@/lib/admin/order-item";
 import { formatPrice } from "@/lib/format";
-import { fontCss, fontLabel } from "@/lib/name-fonts";
+import { fontCss } from "@/lib/name-fonts";
 import { isOrderStatus, STATUS_AR } from "@/lib/order-status";
 import { paymentMethods } from "@/lib/payments";
+import { roundMoney } from "@/lib/pricing/discount";
+import { DEPOSIT_LABEL, PROOF_BUCKET, getItemCustomizationNote, type DepositStatus } from "@/lib/product-rules";
 import type { ProductImage } from "@/lib/types";
 import "./invoice.css";
 
 export const metadata = { title: "تفاصيل الطلب" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEPOSIT_METHOD_AR: Record<string, string> = { instapay: "إنستاباي", wallet: "محفظة إلكترونية" };
 
 type Item = InvoiceItem & {
   product_id: string | null;
@@ -67,157 +69,165 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   const proof = data.payment_proof_path ? await supabase.storage.from(PROOF_BUCKET).createSignedUrl(data.payment_proof_path, 3600) : null;
   const pay = paymentMethods.find((m) => m.id === data.payment_method)?.label ?? data.payment_method;
 
+  // money (same rules as before: the deposit counts as paid once an admin confirmed it)
+  const total = Number(data.total);
+  const deposit = Number(data.deposit_amount);
+  const depositStatus = data.deposit_status as DepositStatus | null;
+  const toCollect = roundMoney(total - (depositStatus === "confirmed" ? deposit : 0));
+  const pieces = items.reduce((a, i) => a + i.qty, 0);
+
+  // customization notes are shown on their item; anything that could not be matched is shown once below the items
+  const notes = new Map(items.map((it) => [it.id, getItemCustomizationNote(data.customization_notes, it, items, it.product_id ? photo.get(it.product_id)?.slug : undefined)]));
+  const unmatchedNotes = data.customization_notes?.trim() && ![...notes.values()].some(Boolean) ? data.customization_notes.trim() : null;
+
   return (
     <>
-      <div className="adm-order-screen">
-        <div className="adm-head">
-          <div>
-            <p className="adm-sub"><Link href="/admin/orders">← الطلبات</Link></p>
-            <h1>طلب <bdi dir="ltr">#{data.number}</bdi> <span className="adm-badge" data-s={status}>{statusLabel}</span></h1>
-            <p className="adm-sub">{formatDate(data.created_at)}</p>
+      <div className="adm-order-screen adm-od">
+        <header className="adm-od-head">
+          <div className="adm-od-title">
+            <Link href="/admin/orders" className="adm-od-back">← الطلبات</Link>
+            <div className="adm-od-title-row">
+              <h1>طلب <bdi dir="ltr">#{data.number}</bdi></h1>
+              <span className="adm-pill" data-s={status}>{statusLabel}</span>
+            </div>
+            <time className="adm-sub" dateTime={data.created_at}>{formatDay(data.created_at)}</time>
           </div>
-          <div className="adm-order-head-actions">
+          <div className="adm-od-actions">
             <StatusForm id={data.id} status={status} />
             <PrintInvoiceButton />
           </div>
-        </div>
+        </header>
 
-        {status === "returned" && data.return_reason && (
-          <section className="adm-card adm-return-reason" aria-labelledby="order-return-reason">
-            <h2 id="order-return-reason" lang="en">Return Reason</h2>
-            <p dir="auto">{data.return_reason}</p>
-          </section>
-        )}
+        <div className="adm-od-grid">
+          <div className="adm-od-main">
+            {status === "returned" && data.return_reason && (
+              <section className="adm-card adm-od-return" aria-labelledby="od-return">
+                <h2 id="od-return">سبب الإرجاع</h2>
+                <p dir="auto">{data.return_reason}</p>
+              </section>
+            )}
 
-        <div className="adm-grid adm-cols-2" style={{ alignItems: "start" }}>
-          <section className="adm-card" aria-label="بيانات العميل">
-            <h2>العميل</h2>
-            <dl className="adm-dl">
-              <dt>الاسم</dt><dd>{data.customer_name}</dd>
-              <dt>الموبايل</dt>
-              <dd>
-                <a href={`tel:${data.phone}`} dir="ltr">{data.phone}</a>{" "}
-                · <a href={whatsappUrl(data.phone)} target="_blank" rel="noreferrer">واتساب ↗</a>
-              </dd>
-              <dt>المحافظة</dt><dd>{data.governorate}</dd>
-              <dt>المنطقة</dt><dd>{data.area}</dd>
-              <dt>العنوان</dt><dd>{data.address}</dd>
-              {data.notes && (<><dt>ملاحظات</dt><dd>{data.notes}</dd></>)}
-              {data.customization_notes && <><dt>ملاحظات التخصيص (الفوط والمريلات)</dt><dd style={{ whiteSpace: "pre-wrap" }}>{data.customization_notes}</dd></>}
-              <dt>الدفع</dt><dd>{pay}</dd>
-            </dl>
-          </section>
-
-          <section className="adm-card" aria-label="الحساب">
-            <h2>الحساب</h2>
-            <dl className="adm-dl">
-              <dt>المنتجات</dt><dd>{formatPrice(Number(data.subtotal))}</dd>
-              <dt>الشحن</dt><dd>{formatPrice(Number(data.shipping))}</dd>
-              <dt><b>الإجمالي</b></dt><dd><b>{formatPrice(Number(data.total))}</b> {data.deposit_status ? "" : "(يُدفع عند الاستلام)"}</dd>
-            </dl>
-          </section>
-        </div>
-
-        {data.deposit_status && <section className="adm-card" style={{ marginTop: 16 }} aria-label="العربون">
-          <h2>العربون</h2>
-          <dl className="adm-dl">
-            <dt>الحالة</dt><dd>{DEPOSIT_LABEL[data.deposit_status as DepositStatus]}</dd>
-            <dt>العربون المطلوب (30%)</dt><dd>{formatPrice(Number(data.deposit_amount))}</dd>
-            <dt>المتبقي بعد تأكيد العربون</dt><dd>{formatPrice(roundMoney(Number(data.total) - Number(data.deposit_amount)))}</dd>
-            <dt>المبلغ المستحق حاليًا</dt><dd>{formatPrice(roundMoney(Number(data.total) - (data.deposit_status === "confirmed" ? Number(data.deposit_amount) : 0)))}</dd>
-            <dt>طريقة التحويل</dt><dd>{data.deposit_method === "instapay" ? "InstaPay" : "Wallet"}</dd>
-          </dl>
-          {proof?.data?.signedUrl ? (
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-              <a
-                href={proof.data.signedUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: "inline-block", maxWidth: "100%", borderRadius: 10, overflow: "hidden", border: "1px solid var(--adm-side-border)", background: "#fff", padding: 4 }}
-                title="فتح إثبات التحويل بالحجم الكامل"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- private signed URL */}
-                <img src={proof.data.signedUrl} alt="إثبات تحويل العربون" style={{ maxWidth: "100%", maxHeight: 320, objectFit: "contain", display: "block", borderRadius: 6 }} />
-              </a>
-              <a
-                href={proof.data.signedUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="adm-btn ghost"
-                style={{ textDecoration: "none" }}
-              >
-                <Icon name="eye" size={17} />
-                <span>فتح إثبات التحويل بالحجم الكامل</span>
-              </a>
-            </div>
-          ) : <p>إثبات التحويل غير متاح.</p>}
-          {data.deposit_status === "submitted" && <DepositReview id={data.id} />}
-        </section>}
-        <section className="adm-card" style={{ marginTop: 16 }} aria-label="المنتجات">
-          <h2>المنتجات ({items.reduce((a, i) => a + i.qty, 0)} قطعة)</h2>
-          {items.map((it) => {
-            const d = designs.get(it.id);
-            const p = it.product_id ? photo.get(it.product_id) : undefined;
-            const itemNote = getItemCustomizationNote(data.customization_notes, it, items, p?.slug);
-            return (
-              <div className="adm-item" key={it.id}>
-                {it.mode === "design" && d?.view ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable
-                  <img className="design-img" src={d.view} alt="تصميم العميل" width={96} height={128} />
-                ) : p?.img ? (
-                  <Image src={p.img.src} alt="" width={96} height={128} style={{ objectPosition: p.img.position }} />
-                ) : (
-                  <span style={{ width: 96, height: 128, background: "var(--image)" }} />
-                )}
-                <div style={{ minWidth: 0 }}>
-                  <div><b>{it.name_snapshot}</b> <span className="adm-sub">× {it.qty}</span></div>
-                  {it.color && <div className="adm-sub">اللون: {colorLabel(it)}</div>}
-                  {it.mode === "standard" && <div className="adm-sub">زي ما هو (من غير تخصيص)</div>}
-                  {it.mode === "name" && (
-                    <div style={{ marginTop: 8 }}>
-                      <div className="adm-sub"><b>نوع التخصيص:</b> كتابة الاسم{it.font ? ` (خط ${fontLabel(it.font)})` : ""}</div>
-                      <span className="adm-nameprint" style={{ fontFamily: fontCss(it.font) }}>{it.text}</span>
-                      <div className="adm-hint" dir="ltr" style={{ textAlign: "right" }}>{it.text}</div>
-                      {itemNote && (
-                        <div className="adm-customization-note">
-                          <span className="adm-customization-note-title">ملاحظات التخصيص:</span>
-                          <span className="adm-customization-note-text">{itemNote}</span>
-                        </div>
+            <section className="adm-card" aria-labelledby="od-items">
+              <h2 id="od-items">المنتجات <span className="adm-od-count">{pieces} {pieces === 1 ? "قطعة" : "قطع"}</span></h2>
+              <ul className="adm-od-items">
+                {items.map((it) => {
+                  const d = designs.get(it.id);
+                  const img = it.product_image_snapshot ?? (it.product_id ? photo.get(it.product_id)?.img : undefined);
+                  const note = notes.get(it.id);
+                  const unit = Number(it.unit_price);
+                  return (
+                    <li className="adm-od-item" key={it.id}>
+                      {it.mode === "design" && d?.view ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable
+                        <img className="adm-od-thumb design" src={d.view} alt="تصميم العميل" width={72} height={96} />
+                      ) : img?.src ? (
+                        <Image className="adm-od-thumb" src={img.src} alt="" width={72} height={96} style={{ objectPosition: img.position }} />
+                      ) : (
+                        <span className="adm-od-thumb" aria-hidden="true" />
                       )}
-                    </div>
-                  )}
-                  {it.mode === "design" && (
-                    <div style={{ marginTop: 8 }}>
-                      <div className="adm-sub"><b>نوع التخصيص:</b> تصميم العميل (رفع تصميم خاص)</div>
-                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        {d?.download ? (
-                          <a className="adm-btn sm" href={d.download} style={{ textDecoration: "none" }}>تحميل الملف</a>
-                        ) : (
-                          <div className="adm-err">الملف مش متاح (اتمسح أو حصلت مشكلة).</div>
+
+                      <div className="adm-od-item-body">
+                        <div className="adm-od-item-top">
+                          <strong dir="auto">{it.name_snapshot}</strong>
+                          <span className="adm-od-price">{formatPrice(roundMoney(unit * it.qty))}</span>
+                        </div>
+                        <div className="adm-od-item-meta">
+                          <span>{itemOptionLine(it)}</span>
+                          <span>
+                            الكمية {it.qty}
+                            {it.qty > 1 && <> · {formatPrice(unit)} للقطعة</>}
+                          </span>
+                        </div>
+
+                        {it.mode === "name" && it.text && (
+                          <span className="adm-nameprint" style={{ fontFamily: fontCss(it.font) }} dir="auto">{it.text}</span>
                         )}
-                        {d?.view && (
-                          <a className="adm-hint" href={d.view} target="_blank" rel="noreferrer" style={{ display: "inline-block" }}>
-                            فتح الصورة بالحجم الكامل ↗ (الرابط صالح لساعة)
-                          </a>
+
+                        {it.mode === "design" && (
+                          <div className="adm-od-design">
+                            {d?.download ? (
+                              <a className="adm-btn sm" href={d.download}>
+                                <Icon name="upload" size={15} /> تحميل التصميم
+                              </a>
+                            ) : (
+                              <span className="adm-err">ملف التصميم مش متاح.</span>
+                            )}
+                            {d?.view && (
+                              <a className="adm-od-link" href={d.view} target="_blank" rel="noreferrer">عرض بالحجم الكامل ↗</a>
+                            )}
+                          </div>
+                        )}
+
+                        {note && (
+                          <p className="adm-od-note"><b>ملاحظة:</b> <span>{note}</span></p>
                         )}
                       </div>
-                      {itemNote && (
-                        <div className="adm-customization-note">
-                          <span className="adm-customization-note-title">ملاحظات التخصيص:</span>
-                          <span className="adm-customization-note-text">{itemNote}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div style={{ textAlign: "end" }}>
-                  <div>{formatPrice(Number(it.unit_price) * it.qty)}</div>
-                  <div className="adm-hint">{formatPrice(Number(it.unit_price))} للقطعة</div>
-                </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {unmatchedNotes && (
+                <p className="adm-od-note"><b>ملاحظات التخصيص:</b> <span>{unmatchedNotes}</span></p>
+              )}
+            </section>
+          </div>
+
+          <aside className="adm-od-side">
+            <section className="adm-card" aria-labelledby="od-customer">
+              <h2 id="od-customer">العميل</h2>
+              <p className="adm-od-strong" dir="auto">{data.customer_name}</p>
+              <p className="adm-od-phone"><bdi dir="ltr">{data.phone}</bdi></p>
+              <div className="adm-od-contact">
+                <a className="adm-btn ghost sm" href={`tel:${data.phone}`}>اتصال</a>
+                <a className="adm-btn ghost sm" href={whatsappUrl(data.phone)} target="_blank" rel="noreferrer">واتساب ↗</a>
               </div>
-            );
-          })}
-        </section>
+            </section>
+
+            <section className="adm-card" aria-labelledby="od-delivery">
+              <h2 id="od-delivery">التوصيل</h2>
+              <dl className="adm-od-dl">
+                <dt>المحافظة</dt><dd>{data.governorate}</dd>
+                <dt>العنوان</dt><dd dir="auto">{[data.area, data.address].filter(Boolean).join("، ")}</dd>
+                {data.notes?.trim() && <><dt>ملاحظات</dt><dd dir="auto" className="adm-od-pre">{data.notes}</dd></>}
+              </dl>
+            </section>
+
+            <section className="adm-card" aria-labelledby="od-payment">
+              <h2 id="od-payment">الدفع</h2>
+              <dl className="adm-od-dl adm-od-money">
+                <dt>المنتجات</dt><dd>{formatPrice(Number(data.subtotal))}</dd>
+                <dt>الشحن</dt><dd>{formatPrice(Number(data.shipping))}</dd>
+                <dt className="total">الإجمالي</dt><dd className="total">{formatPrice(total)}</dd>
+                {depositStatus && (
+                  <>
+                    <dt>العربون (30%)</dt>
+                    <dd>{formatPrice(deposit)}</dd>
+                    <dt>حالة العربون</dt>
+                    <dd><span className="adm-pill" data-d={depositStatus}>{DEPOSIT_LABEL[depositStatus]}</span></dd>
+                    {data.deposit_method && DEPOSIT_METHOD_AR[data.deposit_method] && (
+                      <><dt>التحويل</dt><dd>{DEPOSIT_METHOD_AR[data.deposit_method]}</dd></>
+                    )}
+                  </>
+                )}
+              </dl>
+
+              {proof?.data?.signedUrl && (
+                <a className="adm-od-proof" href={proof.data.signedUrl} target="_blank" rel="noreferrer" title="فتح إثبات التحويل بالحجم الكامل">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- private signed URL */}
+                  <img src={proof.data.signedUrl} alt="إثبات تحويل العربون" />
+                  <span>إثبات التحويل ↗</span>
+                </a>
+              )}
+              {depositStatus === "submitted" && <div className="adm-od-review"><DepositReview id={data.id} /></div>}
+
+              <div className="adm-od-collect">
+                <span>المطلوب تحصيله عند الاستلام</span>
+                <strong>{formatPrice(toCollect)}</strong>
+                <small>{depositStatus && depositStatus !== "confirmed" ? `${formatPrice(roundMoney(total - deposit))} بعد تأكيد العربون` : pay}</small>
+              </div>
+            </section>
+          </aside>
+        </div>
       </div>
       <OrderInvoice order={data} items={items} />
     </>

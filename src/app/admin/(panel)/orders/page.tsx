@@ -33,7 +33,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   let query = supabase
     .from("orders")
-    .select("id, number, customer_name, phone, governorate, status, deposit_status, total, created_at", { count: "exact" })
+    .select("id, number, customer_name, governorate, status, deposit_status, total, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE, page * PAGE - 1);
   if (status) query = query.eq("status", status);
@@ -120,7 +120,6 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                 </td>
                 <td className="adm-customer-cell">
                   <span className="adm-customer-name" dir="auto">{o.customer_name}</span>
-                  <a href={`tel:${o.phone}`} className="adm-phone-link" dir="ltr">{o.phone}</a>
                 </td>
                 <td>{o.governorate}</td>
                 <td className="adm-total-cell num">{formatPrice(Number(o.total))}</td>

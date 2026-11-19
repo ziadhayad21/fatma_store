@@ -1,9 +1,9 @@
 import Image from "next/image";
 import { formatDay } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
-import { fontLabel } from "@/lib/name-fonts";
+import { itemOptionLine } from "@/lib/admin/order-item";
 import { roundMoney } from "@/lib/pricing/discount";
-import { colorLabel, getItemCustomizationNote, type DepositStatus, type ProductColor } from "@/lib/product-rules";
+import { getItemCustomizationNote, type DepositStatus, type ProductColor } from "@/lib/product-rules";
 import type { FontId, OrderMode, ProductImage } from "@/lib/types";
 
 export type InvoiceItem = {
@@ -39,14 +39,7 @@ type InvoiceOrder = {
 
 /** One short line under the product name: option · colour · font · customization note. */
 function itemDetails(item: InvoiceItem, note: string | null): string {
-  const parts = [
-    item.mode === "name" ? `باسم «${item.text ?? ""}»` : item.mode === "design" ? "بتصميم العميل" : "زي ما هو",
-  ];
-  const color = item.color ? colorLabel(item) : null;
-  if (color) parts.push(`اللون: ${color}`);
-  if (item.mode === "name" && item.font) parts.push(`خط ${fontLabel(item.font)}`);
-  if (note) parts.push(note.replace(/\s+/g, " "));
-  return parts.join(" · ");
+  return note ? `${itemOptionLine(item)} · ${note.replace(/\s+/g, " ")}` : itemOptionLine(item);
 }
 
 /**
