@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { Tile } from "@/components/ui/Tile";
-import { productPrice } from "@/lib/pricing/discount";
+import { fromPrice } from "@/lib/pricing/discount";
 import { productRules } from "@/lib/product-rules";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/store/cart";
@@ -36,7 +36,11 @@ export function ProductCard({
   const openCart = useUI((s) => s.openCart);
   const [main] = p.images;
   const href = `/products/${p.slug}`;
-  const price = productPrice(p);
+  const price = fromPrice(p);
+  const rules = productRules(p);
+  // quick add uses the first available colour; a colour product with none left opens its page instead
+  const quickAddColor = rules.colors ? p.colors[0]?.id ?? null : null;
+  const canQuickAdd = !rules.colors || quickAddColor !== null;
 
   if (variant === "listing") {
     return (
@@ -61,24 +65,26 @@ export function ProductCard({
           >
             <Icon name="heart" size={16} />
           </button>
-          <button
-            type="button"
-            className={`${listingButton} right-2 bottom-2 hover:bg-[#292524] hover:text-white lg:right-3 lg:bottom-3`}
-            aria-label="أضف للسلة"
-            onClick={() => {
-              add({ productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: productRules(p).textile ? "black" : null });
-              openCart();
-            }}
-          >
-            <Icon name="plus" size={16} />
-          </button>
+          {canQuickAdd && (
+            <button
+              type="button"
+              className={`${listingButton} right-2 bottom-2 hover:bg-[#292524] hover:text-white lg:right-3 lg:bottom-3`}
+              aria-label="أضف للسلة"
+              onClick={() => {
+                add({ productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: quickAddColor });
+                openCart();
+              }}
+            >
+              <Icon name="plus" size={16} />
+            </button>
+          )}
         </div>
-        {productRules(p).customization && <span className="mt-2.5 inline-block rounded-md bg-[#E8EFE5] px-2 py-0.5 text-[10px] font-medium text-[#4B5E45] lg:mt-3 lg:text-[11px]">+ قابل للطباعة</span>}
+        {rules.customization && <span className="mt-2.5 inline-block rounded-md bg-[#E8EFE5] px-2 py-0.5 text-[10px] font-medium text-[#4B5E45] lg:mt-3 lg:text-[11px]">+ قابل للطباعة</span>}
         <h2 className="listing-product-title line-clamp-1">
           <Link href={href}>{p.name_ar}</Link>
         </h2>
         <div className="listing-product-price mt-0.5 text-[13px] text-[#292524] lg:mt-1 lg:text-[15px]"><PriceDisplay {...price} /></div>
-        {productRules(p).customization && <span className="mt-1 flex items-center gap-1 text-[10px] font-normal text-stone-400 lg:text-[11px]">
+        {rules.customization && <span className="mt-1 flex items-center gap-1 text-[10px] font-normal text-stone-400 lg:text-[11px]">
           <span className="size-2 rounded-full border border-current" aria-hidden="true" />
           أضف اسمك
         </span>}

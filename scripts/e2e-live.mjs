@@ -43,7 +43,7 @@ function makePng(w, h) {
 const { data: rate } = await sb.from("shipping_rates").select("fee").eq("governorate", "القاهرة").single();
 const shippingFee = Number(rate.fee);
 check("shipping fee for القاهرة is set (needed for checkout)", rate.fee !== null);
-const prices = Object.fromEntries((await sb.from("products").select("slug, base_price, personalization_fee")).data.map((p) => [p.slug, p]));
+const prices = Object.fromEntries((await sb.from("products").select("slug, base_price")).data.map((p) => [p.slug, p]));
 const apron = prices["chef-apron"], bag = prices["polka-dot-bag"];
 
 const browser = await chromium.launch();
@@ -106,7 +106,8 @@ try {
   await page.fill('input[name="area"]', "مدينة نصر");
   await page.fill('input[name="address"]', "12 شارع الاختبار، الدور 3");
   await page.fill('textarea[name="notes"]', "طلب تجريبي — E2E");
-  const expectedSubtotal = Number(apron.base_price) + Number(apron.personalization_fee) + Number(bag.base_price) + Number(bag.personalization_fee);
+  // one price whatever the option: no printing cost
+  const expectedSubtotal = Number(apron.base_price) + Number(bag.base_price);
   const sumText = (await page.locator(".sum").textContent()) ?? "";
   check("checkout summary shows the shipping fee for القاهرة", sumText.includes(String(shippingFee)));
   await page.getByRole("button", { name: /تأكيد الطلب/ }).click();
@@ -135,8 +136,8 @@ try {
     const items = order.order_items;
     const d = items.find((i) => i.mode === "design"), n = items.find((i) => i.mode === "name");
     check("2 items saved", items.length === 2);
-    check("design item: path + snapshot + unit price", !!d && d.design_path === designPath && d.name_snapshot.includes("Polka") && Number(d.unit_price) === Number(bag.base_price) + Number(bag.personalization_fee) && d.qty === 1 && d.text === null && d.font === null, JSON.stringify(d));
-    check("name item: text + font + unit price", !!n && n.text === "Fatma" && n.font === "kufi" && Number(n.unit_price) === Number(apron.base_price) + Number(apron.personalization_fee) && n.design_path === null, JSON.stringify(n));
+    check("design item: path + snapshot + unit price", !!d && d.design_path === designPath && d.name_snapshot.includes("Polka") && Number(d.unit_price) === Number(bag.base_price) && d.qty === 1 && d.text === null && d.font === null, JSON.stringify(d));
+    check("name item: text + font + unit price", !!n && n.text === "Fatma" && n.font === "kufi" && Number(n.unit_price) === Number(apron.base_price) && n.design_path === null, JSON.stringify(n));
   }
   const dir = designPath.slice(0, designPath.lastIndexOf("/")), name = designPath.slice(designPath.lastIndexOf("/") + 1);
   const listed = await sb.storage.from("designs").list(dir, { search: name });

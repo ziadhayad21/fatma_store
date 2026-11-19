@@ -1,13 +1,25 @@
 const adminTimeZone = "Africa/Cairo";
-const fmt = new Intl.DateTimeFormat("ar-EG", {
+// One digit style across the admin: Latin digits, like prices, phone numbers and order numbers.
+// Arabic month names stay ("19 نوفمبر 2026"). To switch the whole admin to ١٩ use "ar-EG" without -u-nu-latn.
+const ADMIN_LOCALE = "ar-EG-u-nu-latn";
+const fmt = new Intl.DateTimeFormat(ADMIN_LOCALE, {
   timeZone: adminTimeZone,
   day: "numeric",
-  month: "short",
+  month: "long",
   year: "numeric",
   hour: "numeric",
   minute: "2-digit",
 });
+const dayFmt = new Intl.DateTimeFormat(ADMIN_LOCALE, {
+  timeZone: adminTimeZone,
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+/** "19 نوفمبر 2026، 4:30 م" (order details header) */
 export const formatDate = (iso: string) => fmt.format(new Date(iso));
+/** "19 نوفمبر 2026": tables and the invoice, date only */
+export const formatDay = (iso: string) => dayFmt.format(new Date(iso));
 
 const dayFormat = new Intl.DateTimeFormat("sv-SE", {
   timeZone: adminTimeZone,

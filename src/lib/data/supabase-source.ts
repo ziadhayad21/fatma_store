@@ -1,27 +1,47 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import type { Category, Product, ProductImage, ProductPage, ProductRow, Review } from "@/lib/types";
+import type { Category, ColorOption, Product, ProductImage, ProductPage, ProductRow, Review } from "@/lib/types";
 import type { CatalogSource, ShippingRate } from "./types";
 
-export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "personalization_fee" | "images"> & {
-  base_price: number | string;
-  discount_percent?: number | string | null;
-  personalization_fee: number | string;
-  images: ProductImage[] | null;
-  category: { slug: string; name_ar: string; is_active: boolean } | null;
+type JoinedColor = {
+  price: number | string;
+  is_available: boolean;
+  color: { id: string; name_ar: string; hex: string; sort: number; is_active: boolean } | null;
 };
 
-export const PRODUCT_SELECT = "*, category:categories!inner(slug, name_ar, is_active)";
+export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "images"> & {
+  base_price: number | string;
+  discount_percent?: number | string | null;
+  images: ProductImage[] | null;
+  category: { slug: string; name_ar: string; is_active: boolean; has_colors?: boolean | null } | null;
+  product_colors?: JoinedColor[] | null;
+  /** legacy column (always 0 since the printing fee was removed); never read */
+  personalization_fee?: unknown;
+};
+
+export const PRODUCT_SELECT =
+  "*, category:categories!inner(slug, name_ar, is_active, has_colors), product_colors(price, is_available, color:colors(id, name_ar, hex, sort, is_active))";
+
+/** Available, active colours in display order. */
+function toColors(rows: JoinedColor[] | null | undefined): ColorOption[] {
+  return (rows ?? [])
+    .filter((r) => r.is_available && r.color?.is_active)
+    .sort((a, b) => a.color!.sort - b.color!.sort || a.color!.id.localeCompare(b.color!.id))
+    .map((r) => ({ id: r.color!.id, name_ar: r.color!.name_ar, hex: r.color!.hex, price: Number(r.price) }));
+}
 
 export function toProduct(r: JoinedRow): Product {
-  const { category, ...row } = r;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- strip join-only / legacy fields
+  const { category, product_colors, personalization_fee, ...row } = r;
+  const has_colors = !!category?.has_colors;
   return {
     ...row,
     base_price: Number(r.base_price),
     discount_percent: r.discount_percent == null ? null : Number(r.discount_percent),
-    personalization_fee: Number(r.personalization_fee),
     images: Array.isArray(r.images) ? r.images : [],
     category_slug: category?.slug ?? "",
     category_name: category?.name_ar ?? "",
+    has_colors,
+    colors: has_colors ? toColors(product_colors) : [],
   };
 }
 

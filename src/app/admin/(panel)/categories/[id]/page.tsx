@@ -21,6 +21,7 @@ export default async function CategoryEdit({ params, searchParams }: PageProps<"
     promo_title_ar: "",
     sort: "0",
     is_active: true,
+    has_colors: false,
     image: [],
   };
   if (!isNew) {
@@ -34,6 +35,7 @@ export default async function CategoryEdit({ params, searchParams }: PageProps<"
       promo_title_ar: c.promo_title_ar,
       sort: String(c.sort),
       is_active: c.is_active,
+      has_colors: !!c.has_colors,
       image: c.image ? [{ src: c.image, alt: c.image_alt, position: c.image_position }] : [],
     };
   }

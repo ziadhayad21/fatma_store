@@ -18,7 +18,7 @@ import { formatPrice } from "@/lib/format";
 import { governorates } from "@/lib/governorates";
 import { defaultPaymentMethod, paymentMethods } from "@/lib/payments";
 import { variantText } from "@/lib/pricing";
-import { personalizationPrice, productPrice, roundMoney, saleBasePrice } from "@/lib/pricing/discount";
+import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 
@@ -57,11 +57,10 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   // until localStorage was read we do not know whether the cart is empty: show a placeholder of about the
   // final height instead of flashing the empty state (that made the footer jump)
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
-  const itemsTotal = roundMoney(lines.reduce((a, l) => a + saleBasePrice(products.get(l.productId)!) * l.qty, 0));
-  const printTotal = roundMoney(lines.reduce((a, l) => a + personalizationPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
+  const itemsTotal = roundMoney(lines.reduce((a, l) => a + productPrice(products.get(l.productId)!, { color: l.color, qty: l.qty }).price, 0));
   const rate = rates.find((r) => r.governorate === form.governorate);
   const shippingKnown = !!rate && rate.fee !== null;
-  const total = roundMoney(itemsTotal + printTotal + (shippingKnown ? rate!.fee! : 0));
+  const total = roundMoney(itemsTotal + (shippingKnown ? rate!.fee! : 0));
   const requiresDeposit = lines.some((l) => productRules(products.get(l.productId)!).deposit);
   const deposit = requiresDeposit ? depositAmount(total) : 0;
   const shippingBlocked = !!form.governorate && !shippingKnown;
@@ -275,16 +274,15 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500 }}>{p.name_ar} <span className="muted">× {l.qty}</span></div>
-                      <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</div>
+                      <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</div>
                     </div>
-                    <PriceDisplay {...productPrice(p, l.mode, l.qty)} />
+                    <PriceDisplay {...productPrice(p, { color: l.color, qty: l.qty })} />
                   </div>
                 );
               })}
             </div>
             <div style={{ height: 1, background: "#dcd8d1" }} />
             <div className="sl"><span className="muted">المنتجات</span><span className="price">{formatPrice(itemsTotal)}</span></div>
-            <div className="sl"><span className="muted">الطباعة والتخصيص</span><span className="price">{formatPrice(printTotal)}</span></div>
             <div className="sl">
               <span className="muted">الشحن</span>
               {shippingKnown ? (

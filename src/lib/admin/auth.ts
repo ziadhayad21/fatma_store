@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { hasSupabase } from "@/lib/env";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -14,6 +15,10 @@ export type AdminContext = { supabase: SupabaseClient; user: User };
  */
 export async function getAdmin(): Promise<AdminContext | null> {
   if (!hasSupabase) return null;
+  // Always request-time: the session check compares token expiry with the current time (Date.now()).
+  // Without this, Cache Components' runtime prefetch (cookies available, still a prerender) reports
+  // "unstable value Date.now() while prerendering" on every admin page.
+  await connection();
   const supabase = await createSessionClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;

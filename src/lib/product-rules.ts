@@ -1,21 +1,29 @@
 import type { Product } from "./types";
 import { roundMoney } from "./pricing/discount";
 
-export const COLORS = ["black", "white", "pink"] as const;
-export type ProductColor = (typeof COLORS)[number];
-export const COLOR_LABEL: Record<ProductColor, string> = { black: "Black", white: "White", pink: "Pink" };
-export const isProductColor = (v: unknown): v is ProductColor => COLORS.includes(v as ProductColor);
-export function productRules(product: Pick<Product, "category_slug">) {
+/** A colour id as stored in public.colors / carts / order items (e.g. "black"). */
+export type ProductColor = string;
+export const isProductColor = (v: unknown): v is ProductColor =>
+  typeof v === "string" && v.length <= 40 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(v);
+
+/** Names for order items saved before colour names were snapshotted. */
+const LEGACY_COLOR_NAME: Record<string, string> = { black: "أسود", white: "أبيض", pink: "وردي" };
+export const colorLabel = (item: { color?: string | null; color_name?: string | null }) =>
+  item.color_name || (item.color ? LEGACY_COLOR_NAME[item.color] ?? item.color : null);
+
+export function productRules(product: Pick<Product, "category_slug"> & { has_colors?: boolean }) {
   const textile = ["aprons", "towels"].includes(product.category_slug);
-  return { textile, customization: product.category_slug !== "bags", deposit: textile };
+  const colors = !!product.has_colors;
+  // colour products print the name in the chosen colour: no font choice
+  return { colors, customization: product.category_slug !== "bags", deposit: textile, font: !colors };
 }
 export const DEPOSIT_NUMBER = "01155907797";
 export const depositAmount = (total: number) => roundMoney(total * 0.3);
 export type DepositStatus = "pending" | "submitted" | "confirmed";
 export const DEPOSIT_LABEL: Record<DepositStatus, string> = {
-  pending: "Deposit Pending — في انتظار العربون",
-  submitted: "Deposit Submitted — في انتظار مراجعة التحويل",
-  confirmed: "Deposit Confirmed — تم تأكيد العربون",
+  pending: "في انتظار العربون",
+  submitted: "مراجعة التحويل",
+  confirmed: "العربون مؤكد",
 };
 export const PROOF_BUCKET = "payment-proofs";
 export const isProofPath = (v: unknown): v is string => typeof v === "string" && /^proofs\/\d{4}-\d{2}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.(png|jpg|webp)$/i.test(v);

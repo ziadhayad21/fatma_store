@@ -14,6 +14,7 @@ export const seedCategories: Category[] = [
     sort: 1,
     is_active: true,
     accent_color: "#EFE6D6",
+    has_colors: true,
   },
   {
     id: "10000000-0000-4000-8000-000000000002",
@@ -27,6 +28,7 @@ export const seedCategories: Category[] = [
     sort: 2,
     is_active: true,
     accent_color: "#F6D6DC",
+    has_colors: true,
   },
   {
     id: "10000000-0000-4000-8000-000000000003",
@@ -40,5 +42,6 @@ export const seedCategories: Category[] = [
     sort: 3,
     is_active: true,
     accent_color: "#F2C94C",
+    has_colors: false,
   },
 ];

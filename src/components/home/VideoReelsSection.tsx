@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Doodle } from "@/components/ui/Doodle";
-import { Icon } from "@/components/ui/Icon";
 
 interface ReelItem {
   id: string;

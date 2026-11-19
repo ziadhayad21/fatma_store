@@ -11,8 +11,8 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { formatPrice } from "@/lib/format";
-import { unitPrice, variantText } from "@/lib/pricing";
-import { productPrice, roundMoney } from "@/lib/pricing/discount";
+import { variantText } from "@/lib/pricing";
+import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useUI } from "@/store/ui";
 
@@ -26,7 +26,7 @@ export function CartDrawer() {
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
-  const subtotal = roundMoney(lines.reduce((a, l) => a + unitPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
+  const subtotal = roundMoney(lines.reduce((a, l) => a + productPrice(products.get(l.productId)!, { color: l.color, qty: l.qty }).price, 0));
 
   return (
     <Drawer open={open} onClose={closeAll} side="left" label="سلة التسوق">
@@ -70,9 +70,9 @@ export function CartDrawer() {
                       <Link href={`/products/${p.slug}`} className="card-name" onClick={closeAll}>
                         {p.name_ar}
                       </Link>
-                      <PriceDisplay {...productPrice(p, l.mode, l.qty)} />
+                      <PriceDisplay {...productPrice(p, { color: l.color, qty: l.qty })} />
                     </div>
-                    <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</span>
+                    <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</span>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
                       <QtyStepper value={l.qty} onChange={(n) => setQty(l.key, n)} />
                       <button type="button" className="rm" onClick={() => removeCartLine(l.key)}>

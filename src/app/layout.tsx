@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ar" dir="rtl" className={readex.variable}>
+    <html lang="ar" dir="rtl" className={readex.variable} data-scroll-behavior="smooth">
       <body>{children}</body>
     </html>
   );

@@ -1,8 +1,8 @@
 import { seedCategories } from "../seed-categories";
 import { seedProducts } from "../seed-products";
 import { governorates } from "../governorates";
-import { saleBasePrice } from "../pricing/discount";
-import type { Category, Product } from "../types";
+import { fromPrice } from "../pricing/discount";
+import type { Category, Product, ProductRow } from "../types";
 import type { CatalogSource, ShippingRate } from "./types";
 
 /**
@@ -11,14 +11,30 @@ import type { CatalogSource, ShippingRate } from "./types";
  * Phase 4 replaces this file's implementation; `lib/catalog.ts` does not change.
  */
 
+/** Mirrors the colours seeded by migration …1200 (every colour at the product's price). */
+export const SEED_COLORS = [
+  { id: "black", name_ar: "أسود", hex: "#1A1A1A" },
+  { id: "white", name_ar: "أبيض", hex: "#FFFFFF" },
+  { id: "pink", name_ar: "وردي", hex: "#F4A7C0" },
+] as const;
+
+export function joinSeedProduct(p: ProductRow): Product {
+  const c = seedCategories.find((x) => x.id === p.category_id);
+  const has_colors = !!c?.has_colors;
+  return {
+    ...p,
+    category_slug: c?.slug ?? "",
+    category_name: c?.name_ar ?? "",
+    has_colors,
+    colors: has_colors ? SEED_COLORS.map((col) => ({ ...col, price: p.base_price })) : [],
+  };
+}
+
 function join(): Product[] {
   const byId = new Map(seedCategories.map((c) => [c.id, c]));
   return seedProducts
     .filter((p) => p.is_active)
-    .map((p) => {
-      const c = byId.get(p.category_id);
-      return { ...p, category_slug: c?.slug ?? "", category_name: c?.name_ar ?? "" };
-    })
+    .map(joinSeedProduct)
     .filter((p) => byId.get(p.category_id)?.is_active);
 }
 
@@ -43,8 +59,8 @@ export const seedSource: CatalogSource = {
   async productPage(opts) {
     const all = join().filter((p) => p.category_slug === opts.categorySlug);
     const sorted = [...all].sort((a, b) => {
-      if (opts.sort === "low") return saleBasePrice(a) - saleBasePrice(b) || a.sort - b.sort;
-      if (opts.sort === "high") return saleBasePrice(b) - saleBasePrice(a) || a.sort - b.sort;
+      if (opts.sort === "low") return fromPrice(a).price - fromPrice(b).price || a.sort - b.sort;
+      if (opts.sort === "high") return fromPrice(b).price - fromPrice(a).price || a.sort - b.sort;
       return b.created_at.localeCompare(a.created_at) || a.sort - b.sort; // newest first
     });
     const total = sorted.length;

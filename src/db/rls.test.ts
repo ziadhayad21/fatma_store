@@ -458,3 +458,150 @@ describe("deposit payment gate", () => {
     expect((await db.query<{ n: number }>("select count(*)::int n from public.orders")).rows[0].n).toBe(before);
   });
 });
+
+describe("colours + one price per colour (migration …1200)", () => {
+  const APRON = "00000000-0000-4000-8000-000000000001"; // chef-apron (aprons: has_colors)
+  const bagId = async () => (await db.query<{ id: string }>("select p.id from public.products p join public.categories c on c.id = p.category_id where c.slug = 'bags' limit 1")).rows[0].id;
+  const proof = (n: number) => `proofs/2026-11/${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}.png`;
+
+  it("is additive: keeps personalization_fee (old code reads it) and seeds three colours for towels and aprons only", async () => {
+    const fee = await db.query<{ n: number }>("select count(*)::int n from information_schema.columns where table_name = 'products' and column_name = 'personalization_fee'");
+    expect(fee.rows[0].n).toBe(1);
+    const colors = await as<{ id: string; name_ar: string }>("anon", null, "select id, name_ar from public.colors order by sort");
+    expect(colors.rows).toEqual([{ id: "black", name_ar: "أسود" }, { id: "white", name_ar: "أبيض" }, { id: "pink", name_ar: "وردي" }]);
+    const cats = await as<{ slug: string; has_colors: boolean }>("postgres", null, "select slug, has_colors from public.categories order by sort");
+    expect(Object.fromEntries(cats.rows.map((c) => [c.slug, c.has_colors]))).toEqual({ towels: true, aprons: true, bags: false });
+    const rows = await as<{ slug: string; n: number; same: boolean }>("postgres", null, `
+      select c.slug, count(pc.*)::int n, bool_and(pc.price = p.base_price) same
+      from public.products p join public.categories c on c.id = p.category_id
+      left join public.product_colors pc on pc.product_id = p.id group by c.slug order by c.slug`);
+    expect(rows.rows).toEqual([
+      { slug: "aprons", n: 30, same: true },
+      { slug: "bags", n: 0, same: null },
+      { slug: "towels", n: 30, same: true },
+    ]);
+  });
+
+  it("anon reads only available colours of visible products and cannot write", async () => {
+    await setup("update public.product_colors set is_available = false where product_id = $1 and color_id = 'white'", [APRON]);
+    const visible = await as<{ color_id: string }>("anon", null, "select color_id from public.product_colors where product_id = $1 order by color_id", [APRON]);
+    expect(visible.rows.map((r) => r.color_id)).toEqual(["black", "pink"]);
+    await setup("update public.product_colors set is_available = true where product_id = $1", [APRON]);
+    for (const sql of [
+      "update public.product_colors set price = 1",
+      "insert into public.colors (id, name_ar, hex) values ('red', 'أحمر', '#FF0000')",
+      "delete from public.product_colors",
+    ]) expect((await as("anon", null, sql)).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "update public.product_colors set price = 1")).affected).toBe(0);
+    expect((await as("authenticated", CUSTOMER, "select public.admin_save_product_colors($1, '[]'::jsonb)", [APRON])).error).toMatch(/Admin access required/);
+  });
+
+  it("admin_save_product_colors replaces the colour set and keeps base_price at the lowest available price", async () => {
+    const r = await as<{ base_price: string }>("authenticated", ADMIN, `
+      select public.admin_save_product_colors($1, $2::jsonb);
+      `, [APRON, JSON.stringify([{ color_id: "black", price: 150, is_available: true }, { color_id: "pink", price: 120, is_available: true }, { color_id: "white", price: 90, is_available: false }])]);
+    expect(r.error).toBeUndefined();
+    // the helper rolls back; run it for real to check the result
+    await db.exec("begin");
+    await db.exec("set local role authenticated");
+    await db.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: ADMIN, role: "authenticated" })]);
+    await db.query("select public.admin_save_product_colors($1, $2::jsonb)", [APRON, JSON.stringify([{ color_id: "black", price: 150, is_available: true }, { color_id: "pink", price: 120, is_available: true }, { color_id: "white", price: 90, is_available: false }])]);
+    const saved = await db.query<{ color_id: string; price: string; is_available: boolean }>("select color_id, price, is_available from public.product_colors where product_id = $1 order by color_id", [APRON]);
+    const base = await db.query<{ base_price: string }>("select base_price from public.products where id = $1", [APRON]);
+    await db.query("select public.admin_save_product_colors($1, $2::jsonb)", [APRON, JSON.stringify([{ color_id: "black", price: 150, is_available: true }])]);
+    const pruned = await db.query<{ color_id: string }>("select color_id from public.product_colors where product_id = $1", [APRON]);
+    await db.exec("rollback");
+    expect(saved.rows.map((x) => [x.color_id, Number(x.price), x.is_available])).toEqual([["black", 150, true], ["pink", 120, true], ["white", 90, false]]);
+    expect(Number(base.rows[0].base_price)).toBe(120); // the unavailable white (90) does not count
+    expect(pruned.rows.map((x) => x.color_id)).toEqual(["black"]);
+  });
+
+  it("create_order snapshots the colour name and only accepts colours the product is sold in", async () => {
+    await setup(`insert into storage.objects (bucket_id, name) values ('payment-proofs', $1), ('payment-proofs', $2), ('payment-proofs', $3)`, [proof(4), proof(5), proof(6)]);
+    const ok = await as<{ create_order: { id: string } }>("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [
+      JSON.stringify(order({ payment_proof_path: proof(4) })), JSON.stringify([item({ color: "pink" })]),
+    ], true);
+    expect(ok.error).toBeUndefined();
+    const saved = await db.query<{ color: string; color_name: string }>("select color, color_name from public.order_items where order_id = $1", [ok.rows[0].create_order.id]);
+    expect(saved.rows).toEqual([{ color: "pink", color_name: "وردي" }]);
+
+    await setup("update public.product_colors set is_available = false where product_id = $1 and color_id = 'white'", [APRON]);
+    const bag = await bagId();
+    for (const [p, items] of [
+      [proof(5), [item({ color: "white" })]], // not available for this product
+      [proof(5), [item({ color: "red" })]], // not a colour at all
+      [proof(5), [item({ color: null, font: "kufi" })]], // colour products need a colour
+      [proof(6), [item({ product_id: bag, mode: "standard", text: null, color: "black" })]], // bags have no colours
+    ] as const) {
+      const r = await as("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order({ payment_proof_path: p })), JSON.stringify(items)]);
+      expect(r.error).toBeDefined();
+    }
+    await setup("update public.product_colors set is_available = true where product_id = $1", [APRON]);
+    const plainBag = await as("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [
+      JSON.stringify(order({ deposit_method: null, payment_proof_path: null })), JSON.stringify([item({ product_id: bag, mode: "standard", text: null, color: null })]),
+    ]);
+    expect(plainBag.error).toBeUndefined();
+  });
+});
+
+describe("migration …1200 on existing data", () => {
+  it("keeps stored order prices and the old fee values, and backfills colour names", async () => {
+    const legacy = new PGlite();
+    try {
+      await legacy.exec(BOOTSTRAP);
+      const dir = path.resolve("supabase/migrations");
+      const files = readdirSync(dir).filter((x) => x.endsWith(".sql")).sort();
+      for (const f of files.filter((x) => x < "20260101001200")) await legacy.exec(readFileSync(path.join(dir, f), "utf8"));
+      await legacy.exec(`
+        update public.shipping_rates set fee = 40 where governorate = 'القاهرة';
+        update public.products set personalization_fee = 25, base_price = 110 where slug = 'chef-apron';
+        insert into public.orders (id, customer_name, phone, governorate, area, address, subtotal, shipping, total)
+        values ('99999999-9999-4999-8999-999999999999', 'Old Order', '01012345678', 'القاهرة', 'x', 'abc', 270, 40, 310);
+        insert into public.order_items (order_id, product_id, name_snapshot, mode, text, font, color, unit_price, qty)
+        values ('99999999-9999-4999-8999-999999999999', '00000000-0000-4000-8000-000000000001', 'مريلة', 'name', 'Fatma', null, 'pink', 135, 2);
+      `);
+      await legacy.exec(readFileSync(path.join(dir, "20260101001200_colors_single_price.sql"), "utf8"));
+      const o = await legacy.query<{ subtotal: string; total: string; unit_price: string; color_name: string }>(`
+        select o.subtotal, o.total, i.unit_price, i.color_name from public.orders o join public.order_items i on i.order_id = o.id`);
+      expect(o.rows[0]).toMatchObject({ color_name: "وردي" });
+      expect([Number(o.rows[0].subtotal), Number(o.rows[0].total), Number(o.rows[0].unit_price)]).toEqual([270, 310, 135]);
+      const p = await legacy.query<{ fee: string; prices: string[] }>(`
+        select p.personalization_fee fee, array_agg(pc.price::text order by pc.color_id) prices
+        from public.products p join public.product_colors pc on pc.product_id = p.id where p.slug = 'chef-apron' group by p.personalization_fee`);
+      expect(Number(p.rows[0].fee)).toBe(25); // untouched: the code deployed before the migration still reads it
+      expect(p.rows[0].prices.map(Number)).toEqual([110, 110, 110]);
+    } finally {
+      await legacy.close();
+    }
+  });
+});
+
+describe("old admin after migration …1200 (base_price only)", () => {
+  const TOWELS = "10000000-0000-4000-8000-000000000001";
+  const BAGS = "10000000-0000-4000-8000-000000000003";
+  const colorsOf = async (id: string) =>
+    Object.fromEntries((await db.query<{ color_id: string; price: string }>("select color_id, price from public.product_colors where product_id = $1", [id])).rows.map((r) => [r.color_id, Number(r.price)]));
+
+  it("a towel added the old way gets every colour at its price (stays orderable)", async () => {
+    const { rows: [p] } = await db.query<{ id: string }>("insert into public.products (slug, name_ar, category_id, base_price, personalization_fee) values ('old-admin-towel', 'فوطة', $1, 95, 20) returning id", [TOWELS]);
+    expect(await colorsOf(p.id)).toEqual({ black: 95, white: 95, pink: 95 });
+    const { rows: [bag] } = await db.query<{ id: string }>("insert into public.products (slug, name_ar, category_id, base_price) values ('old-admin-bag', 'شنطة', $1, 80) returning id", [BAGS]);
+    expect(await colorsOf(bag.id)).toEqual({});
+  });
+
+  it("an old-admin price change moves uniform colour prices, never individually set ones", async () => {
+    const { rows: [p] } = await db.query<{ id: string }>("select id from public.products where slug = 'old-admin-towel'");
+    await db.query("update public.products set base_price = 110 where id = $1", [p.id]);
+    expect(await colorsOf(p.id)).toEqual({ black: 110, white: 110, pink: 110 });
+    await db.query("update public.product_colors set price = 150 where product_id = $1 and color_id = 'pink'", [p.id]);
+    await db.query("update public.products set base_price = 120 where id = $1", [p.id]);
+    expect(await colorsOf(p.id)).toEqual({ black: 110, white: 110, pink: 150 });
+  });
+
+  it("a colour removed by the new admin does not come back on a price change", async () => {
+    const { rows: [p] } = await db.query<{ id: string }>("select id from public.products where slug = 'old-admin-towel'");
+    await db.query("delete from public.product_colors where product_id = $1 and color_id = 'white'", [p.id]);
+    await db.query("update public.products set base_price = 125 where id = $1", [p.id]);
+    expect(Object.keys(await colorsOf(p.id)).sort()).toEqual(["black", "pink"]);
+  });
+});

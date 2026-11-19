@@ -104,10 +104,8 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   const description_ar = txt(formData, "description_ar");
   const details_ar = txt(formData, "details_ar");
   const care_ar = txt(formData, "care_ar");
-  const base = parseMoney(formData.get("base_price"));
   const discountEnabled = formData.get("discount_enabled") === "on";
   const discount = discountEnabled ? parseMoney(formData.get("discount_percent"), 100) : null;
-  const fee = parseMoney(formData.get("personalization_fee"));
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
@@ -115,19 +113,44 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   if (name_ar.length < 1 || name_ar.length > 160) errors.name_ar = "اكتب اسم المنتج (حتى 160 حرف).";
   if (!UUID.test(category_id)) errors.category_id = "اختار القسم.";
   if (description_ar.length > 4000 || details_ar.length > 4000 || care_ar.length > 4000) errors.description_ar = "النص طويل جدًا.";
-  if (base === null || base === "blank") errors.base_price = "اكتب سعرًا صحيحًا.";
   if (discountEnabled && (typeof discount !== "number" || !validDiscountPercent(discount))) {
     errors.discount_percent = "اكتب نسبة خصم أكبر من ٠ وأقل من ١٠٠.";
   }
-  if (fee === null || fee === "blank") errors.personalization_fee = "اكتب تكلفة الطباعة (0 لو مجانًا).";
   if (sort === null) errors.sort = "رقم غير صحيح.";
   if (!imgs.ok) errors.images = imgs.error;
-  if (Object.keys(errors).length) return { ok: false, message: "راجع الحقول المعلّمة.", fieldErrors: errors };
 
-  // what changed? (to know which cache tags to expire)
-  const { data: cats } = await supabase.from("categories").select("id, slug");
+  // what changed? (to know which cache tags to expire) + does this category sell by colour?
+  const { data: cats } = await supabase.from("categories").select("id, slug, has_colors");
   const slugOf = new Map((cats ?? []).map((c) => [c.id as string, c.slug as string]));
-  if (!slugOf.has(category_id)) return { ok: false, message: "القسم مش موجود.", fieldErrors: { category_id: "اختار قسم صحيح." } };
+  if (UUID.test(category_id) && !slugOf.has(category_id)) errors.category_id = "اختار قسم صحيح.";
+  const hasColors = !!cats?.find((c) => c.id === category_id)?.has_colors;
+
+  // One price per product, or one per colour. The ordering option never changes it.
+  let base: number | null = null;
+  let colorRows: { color_id: string; price: number; is_available: boolean }[] = [];
+  if (hasColors) {
+    const { data: colors, error: colorsError } = await supabase.from("colors").select("id").eq("is_active", true);
+    if (colorsError) return { ok: false, message: "تعذّر تحميل الألوان. جرّب تاني." };
+    for (const { id: colorId } of colors ?? []) {
+      const available = formData.get(`color_available_${colorId}`) === "on";
+      const price = parseMoney(formData.get(`color_price_${colorId}`));
+      if (price === null || (available && price === "blank")) {
+        errors[`color_${colorId}`] = "اكتب سعرًا صحيحًا للون ده.";
+      } else if (typeof price === "number") {
+        // an unavailable colour keeps its price for later; with no price it is simply removed
+        colorRows.push({ color_id: colorId as string, price, is_available: available });
+      }
+    }
+    const prices = colorRows.filter((c) => c.is_available).map((c) => c.price);
+    if (prices.length === 0 && !Object.keys(errors).some((k) => k.startsWith("color_"))) errors.colors = "فعّل لون واحد على الأقل واكتب سعره.";
+    base = prices.length ? Math.min(...prices) : null;
+  } else {
+    const parsed = parseMoney(formData.get("base_price"));
+    if (parsed === null || parsed === "blank") errors.base_price = "اكتب سعرًا صحيحًا.";
+    else base = parsed;
+  }
+  if (Object.keys(errors).length) return { ok: false, message: "راجع الحقول المعلّمة.", fieldErrors: errors };
+  if (!hasColors) colorRows = [];
 
   let oldCategoryId: string | undefined;
   if (!isNew) {
@@ -144,7 +167,6 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
     care_ar,
     base_price: base as number,
     discount_percent: typeof discount === "number" ? discount : null,
-    personalization_fee: fee as number,
     images: imgs.ok ? imgs.images : [],
     is_active,
     sort: sort as number,
@@ -154,6 +176,18 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
     ? await insertCatalogRecord(supabase, "products", "product", row)
     : (await supabase.from("products").update(row).eq("id", id).select("id, slug").single()).data;
   if (!saved) return { ok: false, message: "تعذّر الحفظ." };
+
+  // colour prices, atomically (the RPC also re-syncs base_price to the lowest available colour price)
+  if (hasColors) {
+    const { error: colorError } = await supabase.rpc("admin_save_product_colors", { p_product_id: saved.id, p_colors: colorRows });
+    if (colorError) {
+      console.error("saveProduct: colours", colorError.message);
+      invalidateCatalog({ productSlugs: [saved.slug], categorySlugs: [slugOf.get(category_id)!] });
+      // a new product exists now: continue on its edit page so a retry does not create a duplicate
+      if (isNew) redirect(`/admin/products/${saved.id}?colors=failed`);
+      return { ok: false, message: "المنتج اتحفظ لكن أسعار الألوان ما اتحفظتش. جرّب تحفظ تاني." };
+    }
+  }
 
   invalidateCatalog({
     productSlugs: [saved.slug],
@@ -179,6 +213,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
   const promo_title_ar = txt(formData, "promo_title_ar");
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
+  const has_colors = formData.get("has_colors") === "on";
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
   if (name_ar.length < 1 || name_ar.length > 80) errors.name_ar = "اكتب اسم القسم (حتى 80 حرف).";
@@ -199,14 +234,31 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
     image_position: first.position,
     sort: sort as number,
     is_active,
+    has_colors,
   };
+  let hadColors = false;
+  if (!isNew) {
+    const { data: before } = await supabase.from("categories").select("has_colors").eq("id", id).maybeSingle();
+    hadColors = !!before?.has_colors;
+  }
   const saved = isNew
     ? await insertCatalogRecord(supabase, "categories", "category", row)
     : (await supabase.from("categories").update(row).eq("id", id).select("id, slug").single()).data;
   if (!saved) return { ok: false, message: "تعذّر الحفظ." };
 
   // the category name appears on its products' pages too
-  const { data: prods } = isNew ? { data: [] } : await supabase.from("products").select("slug").eq("category_id", saved.id);
+  const { data: prods } = isNew ? { data: [] } : await supabase.from("products").select("id, slug, base_price").eq("category_id", saved.id);
+
+  // Turning colours on: every product starts in every active colour at its current price
+  // (edit each product to change prices or switch colours off).
+  if (has_colors && !hadColors && prods?.length) {
+    const { data: colors } = await supabase.from("colors").select("id").eq("is_active", true);
+    const rows = prods.flatMap((p) => (colors ?? []).map((c) => ({ product_id: p.id, color_id: c.id, price: Number(p.base_price), is_available: true })));
+    if (rows.length) {
+      const { error: colorError } = await supabase.from("product_colors").upsert(rows, { onConflict: "product_id,color_id", ignoreDuplicates: true });
+      if (colorError) return { ok: false, message: "القسم اتحفظ لكن ألوان المنتجات ما اتجهزتش. جرّب تحفظ تاني." };
+    }
+  }
   invalidateCatalog({
     categorySlugs: [saved.slug],
     categoryList: true, // nav, footer, chips, home tiles

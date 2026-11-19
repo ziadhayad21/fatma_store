@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SEED_COLORS } from "@/lib/data/seed-source";
 import { seedCategories } from "@/lib/seed-categories";
 import { seedProducts } from "@/lib/seed-products";
 
@@ -12,6 +13,8 @@ const state = {
   rpcCalls: [] as { name: string; args: { p_order: Record<string, unknown>; p_items: Record<string, unknown>[] } }[],
   rpcError: null as { message: string } | null,
   discounts: new Map<string, number>(),
+  /** per-product colour prices that differ from base_price */
+  colorPrices: new Map<string, Record<string, number>>(),
 };
 
 function chain(resolve: () => unknown) {
@@ -34,7 +37,14 @@ vi.mock("@/lib/supabase/admin", () => ({
           if (table === "products") {
             const cats = new Map(seedCategories.map((c) => [c.id, c]));
             return {
-              data: seedProducts.map((p) => ({ ...p, discount_percent: state.discounts.get(p.slug) ?? null, category: { slug: cats.get(p.category_id)!.slug, name_ar: cats.get(p.category_id)!.name_ar, is_active: true } })),
+              data: seedProducts.map((p) => {
+                const cat = cats.get(p.category_id)!;
+                // same shape as PRODUCT_SELECT: category + product_colors(price, is_available, color:colors(...))
+                const product_colors = cat.has_colors
+                  ? SEED_COLORS.map((c, i) => ({ price: state.colorPrices.get(p.slug)?.[c.id] ?? p.base_price, is_available: true, color: { ...c, sort: i + 1, is_active: true } }))
+                  : [];
+                return { ...p, discount_percent: state.discounts.get(p.slug) ?? null, category: { slug: cat.slug, name_ar: cat.name_ar, is_active: true, has_colors: cat.has_colors }, product_colors };
+              }),
               error: null,
             };
           }
@@ -78,6 +88,7 @@ beforeEach(() => {
   state.rpcCalls.length = 0;
   state.rpcError = null;
   state.discounts.clear();
+  state.colorPrices.clear();
 });
 
 describe("placeOrder", () => {
@@ -93,11 +104,11 @@ describe("placeOrder", () => {
     const { p_order, p_items } = state.rpcCalls[0].args;
     expect(state.rpcCalls[0].name).toBe("create_order");
     const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
-    const namedApron = apron.base_price + apron.personalization_fee;
-    const subtotal = apron.base_price * 2 + namedApron * 3 + apron.base_price + apron.personalization_fee;
+    // one price whatever the option: no printing cost on name / design lines
+    const subtotal = apron.base_price * (2 + 3 + 1);
     expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40, payment_method: "cod", phone: "01012345678" });
     expect(p_items).toHaveLength(3);
-    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: null, color: "black", unit_price: namedApron, qty: 3, design_path: null });
+    expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: null, color: "black", unit_price: apron.base_price, qty: 3, design_path: null });
     expect(p_items[2]).toMatchObject({ mode: "design", design_path: UP, text: null, font: null });
     expect(p_items[0].product_id).toBe("00000000-0000-4000-8000-000000000001");
   });
@@ -106,8 +117,8 @@ describe("placeOrder", () => {
     state.discounts.set("chef-apron", 50);
     const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
     const bag = seedProducts.find((p) => p.slug === "polka-dot-bag")!;
-    const discounted = apron.base_price / 2 + apron.personalization_fee;
-    const original = apron.base_price + apron.personalization_fee;
+    const discounted = apron.base_price / 2;
+    const original = apron.base_price;
     const subtotal = discounted * 2 + bag.base_price;
     const result = await place({
       lines: [
@@ -120,6 +131,17 @@ describe("placeOrder", () => {
     expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40 });
     expect(p_items[0]).toMatchObject({ unit_price: discounted, original_unit_price: original, discount_percent: 50 });
     expect(p_items[1]).toMatchObject({ unit_price: bag.base_price, original_unit_price: null, discount_percent: null });
+  });
+
+  it("charges the selected colour's price, never a client price", async () => {
+    state.colorPrices.set("chef-apron", { pink: 175 });
+    const apron = seedProducts.find((p) => p.slug === "chef-apron")!;
+    const result = await place({ lines: [std({ color: "pink", qty: 2, unitPrice: 1 }), std({ color: "black" })] });
+    expect(result.ok).toBe(true);
+    const { p_order, p_items } = state.rpcCalls[0].args;
+    expect(p_items[0]).toMatchObject({ color: "pink", unit_price: 175, qty: 2 });
+    expect(p_items[1]).toMatchObject({ color: "black", unit_price: apron.base_price });
+    expect(p_order.subtotal).toBe(350 + apron.base_price);
   });
 
   it("requires a real transfer proof and never accepts a client payment status or amount", async () => {

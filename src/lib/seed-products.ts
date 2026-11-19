@@ -20,7 +20,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "خامة قطن مصري 100% عالي الامتصاص، مقاس 45 × 65 سم، طباعة رقمية ألوانها ثابتة مع الغسيل المتكرر.",
     care_ar: "تغسل في الغسالة بماء بارد أو دافئ حتى 40 درجة، تكوى على الظهر للحفاظ على الرسومات.",
     base_price: 90,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-black.jpg", alt: "فوطة مطبخ سودا عليها رسمة بنت بتغسل المواعين وجملة مصرية", position: "center 42%" },
       { src: "/products/towel-cream.jpg", alt: "فوطة بيج عليها رسمة وجملة تعبان مش تعبان", position: "center 42%" },
@@ -38,7 +37,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قطن ناعم ممتاز مع شرايط ديكورية على الحواف، سريعة الجفاف وتتحمل الاستخدام اليومي.",
     care_ar: "غسيل آلي خفيف، تجنب استخدام المبيضات، وتكوى بحرارة متوسطة.",
     base_price: 95,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-cream.jpg", alt: "فوطة بيج عليها رسمة وجملة تعبان مش تعبان", position: "center 42%" },
       { src: "/products/towel-black.jpg", alt: "فوطة مطبخ سودا عليها رسمة", position: "center 42%" },
@@ -56,7 +54,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قطن مصري 100% كثيف وخفيف الوزن، نسيج مخصص لتجفيف الأطباق والكاسات بدون وبر.",
     care_ar: "غسيل غسالة بماء بارد، ونشر في الهواء الطلق.",
     base_price: 95,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-black.jpg", alt: "فوطة ملكة المواعين السوداء", position: "center 42%" },
       { src: "/products/towel-cream.jpg", alt: "فوطة تعبان مش تعبان البيج", position: "center 42%" },
@@ -74,7 +71,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "ألياف قطنية عالية النعومة مع قدرة امتصاص فائقة للسوائل المنسكبة.",
     care_ar: "يغسل مع ألوان مشابهة، الكي على ظهر القماش.",
     base_price: 85,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-cream.jpg", alt: "فوطة قهوة الصباح برسمة دافئة", position: "center 42%" },
       { src: "/products/towel-black.jpg", alt: "فوطة مطبخ أنيقة", position: "center 42%" },
@@ -92,7 +88,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "وزن 450 جرام لكل متر مربع، نعومة تدوم لسنوات ولا تتأثر بالغسيل الدوري.",
     care_ar: "غسيل عادي حتى 60 درجة مئوية، آمنة للاستخدام اليومي الشاق.",
     base_price: 110,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-black.jpg", alt: "فوطة قطن مصري فاخر سوداء", position: "center 42%" },
       { src: "/products/towel-cream.jpg", alt: "فوطة قطن بيج طبيعي", position: "center 42%" },
@@ -110,7 +105,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "مقاس عريض 50 × 70 سم، قطن مسامي يسمح للعجين بالتنفس دون أن يلتصق به.",
     care_ar: "غسيل بدون معطرات قوية للحفاظ على رائحة الخبز الزكية.",
     base_price: 90,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-cream.jpg", alt: "فوطة الخبز والمعجنات قطن كريمي", position: "center 42%" },
       { src: "/products/towel-black.jpg", alt: "فوطة مطبخ خبازين", position: "center 42%" },
@@ -128,7 +122,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قطن 100% بحواف معززة بالخياطة المزدوجة لمنع التنسيل.",
     care_ar: "غسيل آلي، تجفيف بالهواء، والكي على درجة حرارة قطن.",
     base_price: 85,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-black.jpg", alt: "فوطة حِكَم المطبخ الأنيقة", position: "center 42%" },
       { src: "/products/towel-cream.jpg", alt: "فوطة اقتباسات الشيفات", position: "center 42%" },
@@ -146,7 +139,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "لون كريمي هادئ مع تفاصيل مطبوعة بألوان ثابتة غير قابلة للبهتان.",
     care_ar: "غسيل لطيف وكي بخار خفيف.",
     base_price: 100,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-cream.jpg", alt: "فوطة وصفات زمان الكلاسيكية", position: "center 42%" },
       { src: "/products/towel-black.jpg", alt: "فوطة تراثية للمطبخ", position: "center 42%" },
@@ -164,7 +156,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "خفيفة ومثالية كفرش تحت الصواني ولتجفيف أدوات الشاي الحساسة.",
     care_ar: "تغسل باليد أو الغسالة بمسحوق خفيف.",
     base_price: 90,
-    personalization_fee: 25,
     images: [
       { src: "/products/towel-black.jpg", alt: "فوطة شاي العصرية باللون الأسود", position: "center 42%" },
       { src: "/products/towel-cream.jpg", alt: "فوطة شاي العصرية البيج", position: "center 42%" },
@@ -182,7 +173,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "تخصيص كامل للنص مع اختيار نوع الخط ومكان الطباعة على القماش.",
     care_ar: "طباعة مقاومة لدرجات الحرارة العالية والغسيل المستمر.",
     base_price: 120,
-    personalization_fee: 0,
     images: [
       { src: "/products/towel-cream.jpg", alt: "فوطة مخصصة بالاسم باللون الكريمي", position: "center 42%" },
       { src: "/products/towel-black.jpg", alt: "فوطة مخصصة بالاسم باللون الأسود", position: "center 42%" },
@@ -204,7 +194,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش كانفاس متين مقاوم للحرارة والبقع، حزام رقبة مريح قابل للتعديل وجيب أمامي مقسم للأدوات.",
     care_ar: "تغسل في الغسالة بماء بارد وتكوى من الخلف.",
     base_price: 120,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-chef.jpg", alt: "بنت لابسة مريلة بيج مطبوع عليها Chef Fatma", position: "center 25%" },
       { src: "/products/apron-pink.jpg", alt: "بنت لابسة مريلة Chef وماسكة مريلة بينك", position: "center 22%" },
@@ -222,7 +211,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش تركي معالج ضد انكماش الغسيل مع رباط خصر عريض وثابت.",
     care_ar: "غسيل بدرجة حرارة لا تتعدى 40 درجة، تجنب المبيضات.",
     base_price: 130,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-pink.jpg", alt: "مريلة وردي كلاسيك مبهجة", position: "center 22%" },
       { src: "/products/apron-chef.jpg", alt: "مريلة شيف بيج أنيقة", position: "center 25%" },
@@ -240,7 +228,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "مزيج قطن وكتان مسامي يسمح بالتهوية مع حماية كاملة للملابس من الدقيق ورذاذ الزيت.",
     care_ar: "يفضل الكي وهي رطبة قليلاً للحصول على مظهر الكتان الانسيابي الفاخر.",
     base_price: 140,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-chef.jpg", alt: "مريلة خباز كتان طبيعي بيج", position: "center 25%" },
       { src: "/products/apron-pink.jpg", alt: "مريلة كتان وردي", position: "center 22%" },
@@ -258,7 +245,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "كانفاس ثقيل 12 أونصة مع حلقات نحاسية متينة وأربطة قطنية مصفحة.",
     care_ar: "تغسل في الغسالة ببرنامج الأقمشة الثقيلة، وتكوى على حرارة عالية.",
     base_price: 150,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-pink.jpg", alt: "مريلة الشيف المحترف بإطلالة عصرية", position: "center 22%" },
       { src: "/products/apron-chef.jpg", alt: "مريلة الشيف بيج متينة", position: "center 25%" },
@@ -276,7 +262,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "خياطة ثلاثية مدعومة في نقاط الضغط لتتحمل الأحمال اليومية والشد.",
     care_ar: "غسيل آلي آمن ومقاومة لتغير المقاس والانكماش.",
     base_price: 135,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-chef.jpg", alt: "مريلة كانفاس بجيوب عملية", position: "center 25%" },
       { src: "/products/apron-pink.jpg", alt: "مريلة بجيوب متعددة وردية", position: "center 22%" },
@@ -294,7 +279,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش ناعم بألوان دافئة وتطريز جانبي رقيق يضفي وقاراً وأناقة خاصة.",
     care_ar: "غسيل يدوي أو آلي دورة خفيفة، والتجفيف على شماعة.",
     base_price: 125,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-pink.jpg", alt: "مريلة فينتدج وردية هادئة", position: "center 22%" },
       { src: "/products/apron-chef.jpg", alt: "مريلة كلاسيك كافيه", position: "center 25%" },
@@ -312,7 +296,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "طباعة فينيل حراري مصفح عالية الدقة لا تتأثر بحرارة الطهي أو البخار.",
     care_ar: "تغسل مقلوبة ولا يوضع المكواة مباشرة على حروف الطباعة.",
     base_price: 160,
-    personalization_fee: 0,
     images: [
       { src: "/products/apron-chef.jpg", alt: "مريلة مطبوعة باسم الشيف مخصصة", position: "center 25%" },
       { src: "/products/apron-pink.jpg", alt: "مريلة مخصصة باسمك بينك", position: "center 22%" },
@@ -330,7 +313,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "مقاس مناسب للأعمار من 4 إلى 10 سنوات، خامات آمنة وغير مسببة للحساسية.",
     care_ar: "غسيل متكرر سريع وسهلة إزالة بقع الشوكولاتة والعصير.",
     base_price: 95,
-    personalization_fee: 20,
     images: [
       { src: "/products/apron-pink.jpg", alt: "مريلة الشيف الصغير الوردية للأطفال", position: "center 22%" },
       { src: "/products/apron-chef.jpg", alt: "مريلة أطفال بيج", position: "center 25%" },
@@ -348,7 +330,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "نسيج قطني منسوج الخيوط مسبقاً (Yarn-dyed) ليحافظ على بريق الخطوط مدى الحياة.",
     care_ar: "غسيل عادي حتى 40 درجة مئوية، ومقاومة للتجاعيد.",
     base_price: 115,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-chef.jpg", alt: "مريلة خطوط كلاسيكية بيج", position: "center 25%" },
       { src: "/products/apron-pink.jpg", alt: "مريلة خطوط أنيقة", position: "center 22%" },
@@ -366,7 +347,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "فتحة أمامية في المنتصف تسهل الجلوس والحركة أثناء العمل في الاستوديو.",
     care_ar: "تتحمل درجات الغسيل العالية وتزداد جمالاً مع كل غسلة.",
     base_price: 145,
-    personalization_fee: 25,
     images: [
       { src: "/products/apron-pink.jpg", alt: "مريلة استوديو وورشة فنية", position: "center 22%" },
       { src: "/products/apron-chef.jpg", alt: "مريلة ورشة قماش طبيعي", position: "center 25%" },
@@ -388,7 +368,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش كانفاس قطني 100% متين، مقاس 40 × 42 سم مع يد مريحة بطول 65 سم لحمل الكتف بسهولة.",
     care_ar: "غسيل يدوي أو آلي خفيف بماء بارد، وتكوى على الظهر للحفاظ على الألوان.",
     base_price: 130,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-hanging.jpg", alt: "شنطة قماش صفرا بنقط بني معلقة على شماعة", position: "center 55%" },
       { src: "/products/bag-polka.jpg", alt: "بنت شايلة شنطة صفرا بنقط بني", position: "center 30%" },
@@ -406,7 +385,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "خامة كانفاس ثقيلة تتحمل حتى وزن 10 كجم مع خياطة مدبلة عند مقابض الكتف.",
     care_ar: "تغسل مقلوبة في ماء بارد وتترك لتجف في الهواء الطلق.",
     base_price: 120,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-polka.jpg", alt: "شنطة توت باج قماشية صفراء", position: "center 30%" },
       { src: "/products/bag-hanging.jpg", alt: "شنطة توت باج معلقة", position: "center 55%" },
@@ -424,7 +402,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش قطني ناعم صديق للبيئة وبديل صحي ومستدام للأكياس البلاستيكية.",
     care_ar: "قابلة للغسيل وإعادة الاستخدام لمئات المرات دون فقدان ألوانها.",
     base_price: 125,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-hanging.jpg", alt: "شنطة تسوق قماش عملية معلقة", position: "center 55%" },
       { src: "/products/bag-close.jpg", alt: "تفاصيل نسيج شنطة القماش", position: "center 50%" },
@@ -442,7 +419,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قاعدة عريضة ومبطنة لتمنح الشنطة قواماً ثابتاً أثناء وضعها على المقاعد والمكاتب.",
     care_ar: "تنظيف موضعي للبقع أو غسيل غسالة خفيف.",
     base_price: 140,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-polka.jpg", alt: "شنطة جامعة واسعة للكتف", position: "center 30%" },
       { src: "/products/bag-hanging.jpg", alt: "شنطة قماش للمكتب والجامعة", position: "center 55%" },
@@ -460,7 +436,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "مقابض مزدوجة محاكة بغرز أمان ثلاثية لتمنع قطع الحزام حتى مع الوزن الثقيل.",
     care_ar: "غسيل آلي سريع وتجفيف سهل وسريع.",
     base_price: 115,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-hanging.jpg", alt: "شنطة تسوق متينة للماركت", position: "center 55%" },
       { src: "/products/bag-polka.jpg", alt: "شنطة تسوق كتف", position: "center 30%" },
@@ -478,7 +453,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش ناعم الملمس بلون أصفر خردلي مميز ونقاط دائرية أنيقة.",
     care_ar: "تكوى على الظهر لحفظ نعومة السطح.",
     base_price: 135,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-polka.jpg", alt: "شنطة خروجة يومية عصرية", position: "center 30%" },
       { src: "/products/bag-close.jpg", alt: "تفاصيل النقاط على قماش الشنطة", position: "center 50%" },
@@ -496,7 +470,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "إمكانية اختيار الخط العربي أو الإنجليزي وإضافة رسومات شخصية.",
     care_ar: "غسيل مقلوب بالماء البارد دون استخدام مبيضات.",
     base_price: 160,
-    personalization_fee: 0,
     images: [
       { src: "/products/bag-hanging.jpg", alt: "شنطة مخصصة بالاسم والعبارات", position: "center 55%" },
       { src: "/products/bag-polka.jpg", alt: "شنطة مخصصة بالاسم للموديل", position: "center 30%" },
@@ -514,7 +487,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "قماش قطني سريع النفض من الرمال وخفيف الحمل على الكتف حتى أثناء الامتلاء.",
     care_ar: "غسيل بماء عذب بعد رحلات الشاطئ للحفاظ على نضارة الألوان.",
     base_price: 150,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-polka.jpg", alt: "شنطة صيف وشاطئ صفراء واسعة", position: "center 30%" },
       { src: "/products/bag-hanging.jpg", alt: "شنطة مصيف معلقة في الشاليه", position: "center 55%" },
@@ -532,7 +504,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "خالية من الإضافات المعقدة، سهلة الغسيل وسريعة الجفاف والطي.",
     care_ar: "غسيل آلي عادي بدون أي شروط خاصة.",
     base_price: 110,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-hanging.jpg", alt: "شنطة قطن مينيمال بسيطة وعملية", position: "center 55%" },
       { src: "/products/bag-close.jpg", alt: "قماش الشنطة المينيمال عن قرب", position: "center 50%" },
@@ -550,7 +521,6 @@ export const seedProducts: ProductRow[] = [
     details_ar: "جوانب معززة تحمي أركان الكتب والروايات من التلف أثناء التنقل.",
     care_ar: "غسيل مقلوب بالماء البارد والكي بحرارة منخفضة.",
     base_price: 125,
-    personalization_fee: 25,
     images: [
       { src: "/products/bag-polka.jpg", alt: "شنطة عشاق القراءة والكتب", position: "center 30%" },
       { src: "/products/bag-hanging.jpg", alt: "شنطة قماشية للكتب والمذكرات", position: "center 55%" },

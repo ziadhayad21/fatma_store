@@ -3,7 +3,7 @@ import { productRules, isProductColor, type ProductColor } from "@/lib/product-r
 import { MAX_QTY } from "@/lib/limits";
 import { isFontId, normalizeName, validateName } from "@/lib/personalization";
 import type { FontId, OrderMode, Product } from "@/lib/types";
-import { productPrice, roundMoney } from "./discount";
+import { findColor, productPrice, roundMoney } from "./discount";
 
 /**
  * THE server-side pricing module for orders. Checkout (phase 4) calls only `priceOrder`.
@@ -26,6 +26,8 @@ export type OrderLineInput = {
 
 export type PricedLine = OrderLineInput & {
   productName: string;
+  /** Arabic name of the chosen colour (snapshotted on the order item) */
+  colorName: string | null;
   unitPrice: number;
   originalUnitPrice: number | null;
   discountPercent: number | null;
@@ -71,16 +73,19 @@ export function cleanLine(line: OrderLineInput, product: Product | undefined): O
   }
   const rules = productRules(product);
   if (!rules.customization && line.mode !== "standard") throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
-  if (rules.textile && !isProductColor(line.color)) throw new PricingError("اختار اللون", "bad_line");
-  line = { ...line, color: rules.textile ? line.color : null };
+  // the colour must be one the product is currently sold in (its price comes from that colour)
+  if (rules.colors && !(isProductColor(line.color) && findColor(product, line.color))) {
+    throw new PricingError("اختار اللون", "bad_line");
+  }
+  line = { ...line, color: rules.colors ? line.color : null };
   if (line.mode === "standard") {
     return { ...line, text: null, font: null, designPath: null };
   }
   if (line.mode === "name") {
     const v = validateName(line.text ?? "");
     if (!v.ok) throw new PricingError(v.error, "bad_line");
-    if (!rules.textile && !isFontId(line.font)) throw new PricingError("اختار الخط", "bad_line");
-    return { ...line, text: normalizeName(line.text ?? ""), font: rules.textile ? null : line.font, designPath: null };
+    if (rules.font && !isFontId(line.font)) throw new PricingError("اختار الخط", "bad_line");
+    return { ...line, text: normalizeName(line.text ?? ""), font: rules.font ? line.font : null, designPath: null };
   }
   if (line.mode === "design") {
     if (!line.designPath) throw new PricingError("ارفع التصميم", "bad_line");
@@ -112,10 +117,11 @@ export async function priceOrder(input: {
   const lines: PricedLine[] = input.lines.map((raw) => {
     const product = input.products.get(raw.productId);
     const clean = cleanLine(raw, product);
-    const unit = productPrice(product!, clean.mode);
+    const unit = productPrice(product!, { color: clean.color });
     return {
       ...clean,
       productName: product!.name_ar,
+      colorName: findColor(product!, clean.color)?.name_ar ?? null,
       unitPrice: unit.price,
       originalUnitPrice: unit.originalPrice,
       discountPercent: unit.discountPercent,

@@ -8,7 +8,7 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { Icon } from "@/components/ui/Icon";
 import { getProduct, getRelatedProducts } from "@/lib/catalog";
 import { publicEnv } from "@/lib/env";
-import { saleBasePrice } from "@/lib/pricing/discount";
+import { fromPrice } from "@/lib/pricing/discount";
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -49,7 +49,7 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
     offers: {
       "@type": "Offer",
       priceCurrency: "EGP",
-      price: saleBasePrice(product),
+      price: fromPrice(product).price,
       availability: "https://schema.org/InStock",
       url: `${publicEnv.siteUrl}/products/${product.slug}`,
     },

@@ -8,6 +8,20 @@ import { putWithProgress } from "@/lib/upload";
 
 const POSITIONS = ["center", "center 20%", "center 30%", "center 40%", "center 50%", "center 60%", "top", "bottom"];
 
+/** Photos fill a ~600px-wide frame on the product page; anything smaller looks blurred. */
+const MIN_IMAGE_SIDE = 500;
+
+async function imageSize(file: File): Promise<{ width: number; height: number } | null> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const size = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return size;
+  } catch {
+    return null;
+  }
+}
+
 type Props = {
   /** name of the hidden input that carries the JSON array */
   name: string;
@@ -21,6 +35,8 @@ export function ImagesField({ name, initial, max, onUploadingChange }: Props) {
   const [images, setImages] = useState<ProductImage[]>(initial);
   const [busy, setBusy] = useState<{ name: string; pct: number } | null>(null);
   const [error, setError] = useState("");
+  // natural size of images already saved, to flag ones that are too small to show well
+  const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
   const input = useRef<HTMLInputElement>(null);
 
   async function upload(files: FileList | null) {
@@ -37,6 +53,15 @@ export function ImagesField({ name, initial, max, onUploadingChange }: Props) {
       }
       if (file.size > PRODUCT_IMAGE_MAX) {
         setError("حجم الصورة أكبر من 5 ميجا.");
+        continue;
+      }
+      const dims = await imageSize(file);
+      if (!dims) {
+        setError(`تعذّر قراءة الصورة ${file.name}. جرّب تصدّرها تاني.`);
+        continue;
+      }
+      if (Math.min(dims.width, dims.height) < MIN_IMAGE_SIDE) {
+        setError(`الصورة ${file.name} صغيرة جدًا (${dims.width}×${dims.height} بكسل) وهتظهر مغبّشة. ارفع صورة أقل ضلع فيها ${MIN_IMAGE_SIDE} بكسل على الأقل.`);
         continue;
       }
       setBusy({ name: file.name, pct: 0 });
@@ -71,11 +96,24 @@ export function ImagesField({ name, initial, max, onUploadingChange }: Props) {
       {images.map((img, i) => (
         <div className="adm-img" key={img.src}>
           {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary public URLs */}
-          <img src={img.src} alt="" style={{ objectPosition: img.position }} />
+          <img
+            src={img.src}
+            alt=""
+            style={{ objectPosition: img.position }}
+            onLoad={(e) => {
+              const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
+              setSizes((m) => (m[img.src]?.width === width ? m : { ...m, [img.src]: { width, height } }));
+            }}
+          />
           <div className="fields">
             <input type="text" value={img.alt} onChange={(e) => patch(i, { alt: e.target.value })} placeholder="وصف الصورة (للقراء الصوتيين)" aria-label={`وصف الصورة ${i + 1}`} maxLength={200} />
             <input type="text" list="img-pos" value={img.position} onChange={(e) => patch(i, { position: e.target.value })} aria-label={`موضع الصورة ${i + 1}`} dir="ltr" />
             <span className="adm-hint" dir="ltr">{img.src.replace(/^https?:\/\/[^/]+/, "")}{i === 0 ? "  — الصورة الرئيسية" : ""}</span>
+            {sizes[img.src] && Math.min(sizes[img.src].width, sizes[img.src].height) < MIN_IMAGE_SIDE && (
+              <span className="adm-err" role="alert">
+                الصورة دي صغيرة جدًا ({sizes[img.src].width}×{sizes[img.src].height} بكسل) وبتظهر على الموقع كمربع مغبّش. شيلها وارفع الصورة الأصلية.
+              </span>
+            )}
           </div>
           <div className="ctl">
             <button type="button" className="adm-btn ghost sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="قدّم">↑</button>

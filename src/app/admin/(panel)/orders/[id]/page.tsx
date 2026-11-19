@@ -1,5 +1,5 @@
 import { DepositReview } from "@/components/admin/DepositReview";
-import { COLOR_LABEL, DEPOSIT_LABEL, PROOF_BUCKET, getItemCustomizationNote, type DepositStatus } from "@/lib/product-rules";
+import { colorLabel, DEPOSIT_LABEL, PROOF_BUCKET, getItemCustomizationNote, type DepositStatus } from "@/lib/product-rules";
 import { roundMoney } from "@/lib/pricing/discount";
 import Image from "next/image";
 import Link from "next/link";
@@ -171,7 +171,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                 )}
                 <div style={{ minWidth: 0 }}>
                   <div><b>{it.name_snapshot}</b> <span className="adm-sub">× {it.qty}</span></div>
-                  {it.color && <div className="adm-sub">اللون: {COLOR_LABEL[it.color]}</div>}
+                  {it.color && <div className="adm-sub">اللون: {colorLabel(it)}</div>}
                   {it.mode === "standard" && <div className="adm-sub">زي ما هو (من غير تخصيص)</div>}
                   {it.mode === "name" && (
                     <div style={{ marginTop: 8 }}>
@@ -219,15 +219,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
           })}
         </section>
       </div>
-      <OrderInvoice
-        order={data}
-        items={items.map((it) => ({
-          ...it,
-          product_image_snapshot: it.product_image_snapshot ?? (it.product_id ? photo.get(it.product_id)?.img : null),
-        }))}
-        status={statusLabel}
-        payment={pay}
-      />
+      <OrderInvoice order={data} items={items} />
     </>
   );
 }

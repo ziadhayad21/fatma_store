@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/admin/auth";
 import { readDashboardSales } from "@/lib/admin/dashboard-sales";
-import { adminDateKey, formatDate } from "@/lib/admin/format";
+import { adminDateKey, formatDay } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
 import { governorates } from "@/lib/governorates";
 import { isOrderStatus, ORDER_STATUSES, type OrderStatus } from "@/lib/order-status";
@@ -137,7 +137,7 @@ async function DashboardData() {
                   <tr key={order.id}>
                     <td><Link href={href} className="adm-order-link"><bdi dir="ltr">#{order.number}</bdi></Link></td>
                     <td className="adm-customer-cell" dir="auto">{order.customer_name}</td>
-                    <td className="adm-date-cell"><time dateTime={order.created_at}>{formatDate(order.created_at)}</time></td>
+                    <td className="adm-date-cell"><time dateTime={order.created_at}>{formatDay(order.created_at)}</time></td>
                     <td className="adm-items-cell">{items}</td>
                     <td className="adm-total-cell">{formatPrice(Number(order.total))}</td>
                     <td><span className="adm-badge" data-s={order.status}>{isOrderStatus(order.status) ? statusLabels[order.status] : order.status}</span></td>

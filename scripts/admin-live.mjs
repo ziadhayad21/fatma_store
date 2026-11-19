@@ -2,6 +2,7 @@
 //   node --env-file=.env.local scripts/admin-live.mjs [base]
 // It creates a temporary admin (known password) and a temporary non-admin, signs in through the real login form,
 // exercises every admin screen, checks that storefront changes appear immediately, and cleans everything up.
+import zlib from "node:zlib";
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
 
@@ -28,6 +29,15 @@ async function checkoutOptions(browser, base) {
 }
 const html = async (path) => (await fetch(base + path, { redirect: "manual" })).text();
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==", "base64");
+// product / category photos must be at least 500px on the short side (the admin rejects smaller ones)
+function photoPng(w = 600, h = 800) {
+  const crc = (b) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+  const chunk = (type, data) => { const t = Buffer.from(type); const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([t, data]))); return Buffer.concat([len, t, data, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const raw = Buffer.alloc((w * 3 + 1) * h, 0xcc); for (let y = 0; y < h; y++) raw[y * (w * 3 + 1)] = 0;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
+}
+const PHOTO = photoPng();
 const tag = crypto.randomUUID().slice(0, 6);
 const cleanup = { users: [], orders: [], objects: [], products: [], categories: [] };
 
@@ -44,7 +54,8 @@ await sb.rpc("grant_admin", { p_email: adminEmail });
 const designPath = `uploads/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.png`;
 await sb.storage.from("designs").upload(designPath, PNG, { contentType: "image/png" });
 cleanup.objects.push(["designs", designPath]);
-const apronRow = (await sb.from("products").select("id, base_price, personalization_fee").eq("slug", "chef-apron").single()).data;
+const apronRow = (await sb.from("products").select("id, base_price").eq("slug", "chef-apron").single()).data;
+const apronColors = (await sb.from("product_colors").select("color_id, price, is_available").eq("product_id", apronRow.id)).data ?? [];
 const apronId = apronRow.id;
 const mkOrder = async (name, phone, items, gov = "الجيزة") => {
   const r = await sb.rpc("create_order", {
@@ -206,27 +217,29 @@ try {
   await page.goto(base + "/admin/products", { waitUntil: "load" });
   check("products list shows the 3 seeded products", (await page.locator("tbody tr").count()) >= 3);
   await page.getByRole("link", { name: "مريلة مطبخ Chef" }).first().click();
-  await page.waitForSelector("#base_price");
-  const origPrice = await page.inputValue("#base_price");
-  await vis("#base_price").fill("111");
-  await vis("#personalization_fee").fill("٣٣");
+  await page.waitForSelector('input[name="color_price_black"]');
+  check("apron form has no printing-fee field", (await page.locator("#personalization_fee").count()) === 0);
+  for (const c of ["black", "white", "pink"]) await vis(`input[name="color_available_${c}"]`).check();
+  await vis('input[name="color_price_black"]').fill("١١١");
+  await vis('input[name="color_price_white"]').fill("111");
+  await vis('input[name="color_price_pink"]').fill("130");
   await save();
   await page.locator("text=/اتحفظ/ >> visible=true").first().waitFor();
-  const prod = (await sb.from("products").select("base_price, personalization_fee").eq("slug", "chef-apron").single()).data;
-  check("product price + print fee saved (Arabic digits accepted)", Number(prod.base_price) === 111 && Number(prod.personalization_fee) === 33, JSON.stringify(prod));
+  const prod = (await sb.from("products").select("base_price").eq("slug", "chef-apron").single()).data;
+  const pc = Object.fromEntries(((await sb.from("product_colors").select("color_id, price").eq("product_id", apronId)).data ?? []).map((r) => [r.color_id, Number(r.price)]));
+  check("colour prices saved (Arabic digits accepted), base = lowest", Number(prod.base_price) === 111 && pc.black === 111 && pc.pink === 130, JSON.stringify({ prod, pc }));
   const pg = await html("/products/chef-apron");
   check("storefront product page shows the new price IMMEDIATELY", pg.includes("111 ج.م"), "stale price");
   const home = await html("/");
   check("storefront home card shows the new price IMMEDIATELY", home.includes("111 ج.م"));
-  await vis("#base_price").fill("-5");
+  await vis('input[name="color_price_black"]').fill("-5");
   await save();
   await vis(".adm-err").first().waitFor();
   check("negative price rejected", Number((await sb.from("products").select("base_price").eq("slug", "chef-apron").single()).data.base_price) === 111);
-  await vis("#base_price").fill(origPrice);
-  await vis("#personalization_fee").fill("25");
-  await save();
-  await page.locator("text=/اتحفظ/ >> visible=true").first().waitFor();
-  check("price restored", Number((await sb.from("products").select("base_price").eq("slug", "chef-apron").single()).data.base_price) === Number(origPrice));
+  // restore the original colour prices
+  await sb.from("product_colors").upsert(apronColors.map((c) => ({ ...c, product_id: apronId })), { onConflict: "product_id,color_id" });
+  await sb.from("products").update({ base_price: apronRow.base_price }).eq("id", apronId);
+  check("price restored", Number((await sb.from("products").select("base_price").eq("slug", "chef-apron").single()).data.base_price) === Number(apronRow.base_price));
 
   // new product with a real image upload
   await page.goto(base + "/admin/products/new", { waitUntil: "load" });
@@ -234,10 +247,9 @@ try {
   const productSlug = `e2e-${tag}`;
   await vis("#name_ar").fill(productName);
   check("product slug is generated from the name", await vis("#slug").inputValue() === productSlug);
-  await vis("#category_id").selectOption({ index: 1 });
+  await vis("#category_id").selectOption({ label: "الشنط" });
   await vis("#base_price").fill("50");
-  await vis("#personalization_fee").fill("10");
-  await vis('input[type="file"]').setInputFiles({ name: "shot.png", mimeType: "image/png", buffer: PNG });
+  await vis('input[type="file"]').setInputFiles({ name: "shot.png", mimeType: "image/png", buffer: PHOTO });
   await page.waitForSelector(".adm-img img");
   const imgSrc = await page.locator(".adm-img img").first().getAttribute("src");
   check("image uploaded to the PUBLIC product-images bucket", imgSrc.includes("/storage/v1/object/public/product-images/products/"), imgSrc);
@@ -261,7 +273,7 @@ try {
   // slug collision
   await page.goto(base + "/admin/products/new", { waitUntil: "load" });
   await vis("#name_ar").fill(productName);
-  await vis("#category_id").selectOption({ index: 1 });
+  await vis("#category_id").selectOption({ label: "الشنط" });
   await vis("#base_price").fill("50");
   await vis('input[name="is_active"]').uncheck();
   await save();
@@ -275,7 +287,7 @@ try {
   await vis("#name_ar").fill(`Cat ${tag}`);
   check("category slug is generated from the name", await vis("#slug").inputValue() === `cat-${tag}`);
   await vis("#description_ar").fill("وصف قسم الاختبار");
-  await vis('input[type="file"]').setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG });
+  await vis('input[type="file"]').setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PHOTO });
   await page.waitForSelector(".adm-img img");
   cleanup.objects.push(["product-images", (await page.locator(".adm-img img").first().getAttribute("src")).split("/product-images/")[1]]);
   await save();
@@ -322,7 +334,8 @@ try {
   for (const [bucket, p] of cleanup.objects) await sb.storage.from(bucket).remove([p]);
   for (const id of cleanup.users) await sb.auth.admin.deleteUser(id);
   await sb.from("shipping_rates").update({ fee: null }).in("governorate", ["القاهرة", "الجيزة"]);
-  await sb.from("products").update({ base_price: apronRow.base_price, personalization_fee: apronRow.personalization_fee }).eq("slug", "chef-apron");
+  await sb.from("product_colors").upsert(apronColors.map((c) => ({ ...c, product_id: apronRow.id })), { onConflict: "product_id,color_id" });
+  await sb.from("products").update({ base_price: apronRow.base_price }).eq("slug", "chef-apron");
   console.log("INFO  cleaned up: test orders, product, category, uploads, temporary users; fees reset");
 }
 check("no page errors", errors.length === 0, errors.join(" | "));

@@ -14,6 +14,8 @@ export type CategoryFormValues = {
   promo_title_ar: string;
   sort: string;
   is_active: boolean;
+  /** products are sold per colour, with a price per colour */
+  has_colors: boolean;
   image: ProductImage[];
 };
 
@@ -59,6 +61,13 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
           <input type="checkbox" name="is_active" defaultChecked={v.is_active} />
           ظاهر على الموقع
         </label>
+      </div>
+      <div className="adm-f">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="has_colors" defaultChecked={v.has_colors} aria-describedby="has-colors-hint" />
+          المنتجات بتتباع بالألوان
+        </label>
+        <span className="adm-hint" id="has-colors-hint">لما يكون مفعّل، كل منتج في القسم ليه ألوان وسعر لكل لون، والعميل يختار اللون من صفحة المنتج.</span>
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button className="adm-btn" type="submit" disabled={pending}>{pending ? "جاري الحفظ…" : "حفظ"}</button>

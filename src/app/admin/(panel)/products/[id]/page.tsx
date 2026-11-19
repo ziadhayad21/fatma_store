@@ -14,7 +14,16 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
   if (!isNew && !UUID.test(id)) notFound();
   const { supabase } = await requireAdmin();
 
-  const { data: cats } = await supabase.from("categories").select("id, name_ar").order("sort");
+  const [{ data: cats }, { data: colors }] = await Promise.all([
+    supabase.from("categories").select("id, name_ar, has_colors").order("sort"),
+    supabase.from("colors").select("id, name_ar, hex").eq("is_active", true).order("sort"),
+  ]);
+  // every active colour, with this product's saved price / availability (new products: all available, no price yet)
+  const colorValues = (saved: { color_id: string; price: number | string; is_available: boolean }[] | null) =>
+    (colors ?? []).map((c) => {
+      const row = saved?.find((x) => x.color_id === c.id);
+      return { id: c.id as string, name_ar: c.name_ar as string, hex: c.hex as string, available: row ? row.is_available : !saved?.length, price: row ? String(Number(row.price)) : "" };
+    });
   let values: ProductFormValues = {
     id: "new",
     name_ar: "",
@@ -25,14 +34,17 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
     care_ar: "",
     base_price: "",
     discount_percent: "",
-    personalization_fee: "0",
     sort: "0",
     is_active: true,
     images: [],
+    colors: colorValues(null),
   };
   let slug = "";
   if (!isNew) {
-    const { data: p } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
+    const [{ data: p }, { data: saved }] = await Promise.all([
+      supabase.from("products").select("*").eq("id", id).maybeSingle(),
+      supabase.from("product_colors").select("color_id, price, is_available").eq("product_id", id),
+    ]);
     if (!p) notFound();
     slug = p.slug;
     values = {
@@ -45,10 +57,11 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
       care_ar: p.care_ar,
       base_price: String(p.base_price),
       discount_percent: p.discount_percent == null ? "" : String(p.discount_percent),
-      personalization_fee: String(p.personalization_fee),
       sort: String(p.sort),
       is_active: p.is_active,
       images: (p.images as ProductImage[]) ?? [],
+      // a colour product without saved colours yet starts from its current price in every colour
+      colors: saved?.length ? colorValues(saved) : colorValues(null).map((c) => ({ ...c, price: String(Number(p.base_price)) })),
     };
   }
 
@@ -59,12 +72,13 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
           <p className="adm-sub"><Link href="/admin/products">← المنتجات</Link></p>
           <h1>{isNew ? "منتج جديد" : values.name_ar}</h1>
           {sp.created && <p className="adm-ok" role="status">اتضاف المنتج.</p>}
+          {sp.colors === "failed" && <p className="adm-err" role="alert">المنتج اتضاف لكن أسعار الألوان ما اتحفظتش. راجعها واضغط حفظ.</p>}
         </div>
         {!isNew && (
           <a className="adm-btn ghost" href={`/products/${slug}`} target="_blank" rel="noreferrer">فتح في الموقع ↗</a>
         )}
       </div>
-      <ProductForm values={values} categories={cats ?? []} />
+      <ProductForm values={values} categories={(cats ?? []).map((c) => ({ id: c.id, name_ar: c.name_ar, has_colors: !!c.has_colors }))} />
     </>
   );
 }

@@ -17,6 +17,17 @@ export type Category = {
   is_active: boolean;
   /** hover colour of the category tile on the home page (#RRGGBB) */
   accent_color: string;
+  /** products in this category are sold per colour (price per colour in product_colors) */
+  has_colors?: boolean;
+};
+
+/** A colour a product is sold in (public.colors joined with its price in public.product_colors). */
+export type ColorOption = {
+  id: string;
+  name_ar: string;
+  /** #RRGGBB */
+  hex: string;
+  price: number;
 };
 
 export type ProductImage = {
@@ -37,7 +48,6 @@ export type ProductRow = {
   care_ar: string;
   base_price: number;
   discount_percent?: number | null;
-  personalization_fee: number;
   images: ProductImage[];
   is_active: boolean;
   sort: number;
@@ -48,6 +58,10 @@ export type ProductRow = {
 export type Product = ProductRow & {
   category_slug: string;
   category_name: string;
+  /** the category sells this product per colour */
+  has_colors: boolean;
+  /** available colours, in display order (empty when has_colors is false) */
+  colors: ColorOption[];
 };
 
 export type ProductSort = "new" | "low" | "high";

@@ -8,7 +8,7 @@ const lines = seedProducts
     const details = p.details_ar.replace(/'/g, "''");
     const care = p.care_ar.replace(/'/g, "''");
     const name = p.name_ar.replace(/'/g, "''");
-    return `  ('${p.id}', '${p.slug}', '${name}', '${p.category_id}', '${desc}', '${details}', '${care}', ${p.base_price}, ${p.personalization_fee}, '${imagesJson}'::jsonb, ${p.sort}, '${p.created_at}')`;
+    return `  ('${p.id}', '${p.slug}', '${name}', '${p.category_id}', '${desc}', '${details}', '${care}', ${p.base_price}, 0, '${imagesJson}'::jsonb, ${p.sort}, '${p.created_at}')`;
   })
   .join(",\n");
 

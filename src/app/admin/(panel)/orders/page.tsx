@@ -1,9 +1,7 @@
 import { DEPOSIT_LABEL, type DepositStatus } from "@/lib/product-rules";
 import Link from "next/link";
-import { StatusForm } from "@/components/admin/StatusForm";
-import { Icon } from "@/components/ui/Icon";
 import { requireAdmin } from "@/lib/admin/auth";
-import { formatDate, orderDateBoundary } from "@/lib/admin/format";
+import { formatDay, orderDateBoundary } from "@/lib/admin/format";
 import { orderSearchFilter } from "@/lib/admin/search";
 import { formatPrice } from "@/lib/format";
 import { isOrderStatus, ORDER_STATUSES, STATUS_AR } from "@/lib/order-status";
@@ -35,7 +33,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   let query = supabase
     .from("orders")
-    .select("id, number, customer_name, phone, governorate, address, status, deposit_status, return_reason, total, created_at, order_items(qty)", { count: "exact" })
+    .select("id, number, customer_name, phone, governorate, status, deposit_status, total, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE, page * PAGE - 1);
   if (status) query = query.eq("status", status);
@@ -102,14 +100,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <th scope="col">الرقم</th>
               <th scope="col">التاريخ</th>
               <th scope="col">العميل</th>
-              <th scope="col">الموبايل</th>
               <th scope="col">المحافظة</th>
-              <th scope="col">العنوان الكامل</th>
-              <th scope="col">القطع</th>
-              <th scope="col">الإجمالي</th>
+              <th scope="col" className="num">الإجمالي</th>
               <th scope="col">الحالة</th>
-              <th scope="col">سبب الإرجاع</th>
-              <th scope="col" style={{ textAlign: "center" }}>الإجراءات</th>
+              <th scope="col">العربون</th>
+              <th scope="col"><span className="vh">الإجراءات</span></th>
             </tr>
           </thead>
           <tbody>
@@ -117,53 +112,39 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               <tr key={o.id}>
                 <td>
                   <Link href={`/admin/orders/${o.id}`} className="adm-order-num-link">
-                    <b><bdi dir="ltr">#{o.number}</bdi></b>
+                    <bdi dir="ltr">#{o.number}</bdi>
                   </Link>
                 </td>
                 <td className="adm-date-cell">
-                  <time dateTime={o.created_at}>{formatDate(o.created_at)}</time>
+                  <time dateTime={o.created_at}>{formatDay(o.created_at)}</time>
                 </td>
                 <td className="adm-customer-cell">
-                  <strong>{o.customer_name}</strong>
-                </td>
-                <td dir="ltr" style={{ textAlign: "right" }} className="adm-phone-cell">
-                  <a href={`tel:${o.phone}`} className="adm-phone-link">{o.phone}</a>
+                  <span className="adm-customer-name" dir="auto">{o.customer_name}</span>
+                  <a href={`tel:${o.phone}`} className="adm-phone-link" dir="ltr">{o.phone}</a>
                 </td>
                 <td>{o.governorate}</td>
+                <td className="adm-total-cell num">{formatPrice(Number(o.total))}</td>
                 <td>
-                  <p className="adm-order-address" dir="auto" title={o.address}>{o.address}</p>
-                </td>
-                <td style={{ textAlign: "center" }}>
-                  <span className="adm-qty-badge">{(o.order_items as { qty: number }[]).reduce((a, i) => a + i.qty, 0)}</span>
-                </td>
-                <td className="adm-total-cell">{formatPrice(Number(o.total))}</td>
-                <td>
-                  <StatusForm id={o.id} status={o.status} compact />{o.deposit_status && <small>{DEPOSIT_LABEL[o.deposit_status as DepositStatus]}</small>}
+                  <span className="adm-pill" data-s={o.status}>{isOrderStatus(o.status) ? STATUS_AR[o.status] : o.status}</span>
                 </td>
                 <td>
-                  {o.status === "returned" && o.return_reason ? (
-                    <span className="adm-order-return-reason" dir="auto" title={o.return_reason}>
-                      {o.return_reason}
-                    </span>
+                  {o.deposit_status ? (
+                    <span className="adm-pill" data-d={o.deposit_status}>{DEPOSIT_LABEL[o.deposit_status as DepositStatus]}</span>
                   ) : (
-                    <span className="adm-empty-dash" aria-label="لا يوجد سبب إرجاع">—</span>
+                    <span className="adm-empty-dash" aria-label="بدون عربون">—</span>
                   )}
                 </td>
-                <td style={{ textAlign: "center" }}>
-                  <Link
-                    href={`/admin/orders/${o.id}`}
-                    className="adm-view-order-btn"
-                    title="عرض تفاصيل الطلب وطباعة الفاتورة"
-                  >
-                    <Icon name="eye" size={15} />
-                    <span>عرض التفاصيل</span>
+                <td className="adm-actions-cell">
+                  <Link href={`/admin/orders/${o.id}`} className="adm-view-order-btn">
+                    عرض التفاصيل
+                    <span className="vh"> للطلب {o.number}</span>
                   </Link>
                 </td>
               </tr>
             ))}
             {(orders ?? []).length === 0 && (
               <tr>
-                <td colSpan={11} className="adm-sub" style={{ textAlign: "center", padding: "32px 16px" }}>
+                <td colSpan={8} className="adm-sub" style={{ textAlign: "center", padding: "32px 16px" }}>
                   مفيش طلبات مطابقة.
                 </td>
               </tr>

@@ -9,7 +9,7 @@ import { QtyStepper } from "@/components/ui/QtyStepper";
 import { TextLink } from "@/components/ui/TextLink";
 import { formatPrice } from "@/lib/format";
 import { variantText } from "@/lib/pricing";
-import { personalizationPrice, productPrice, roundMoney, saleBasePrice } from "@/lib/pricing/discount";
+import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 import { removeCartLine } from "@/lib/cart-actions";
@@ -24,8 +24,7 @@ export function CartView() {
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
-  const itemsTotal = roundMoney(lines.reduce((a, l) => a + saleBasePrice(products.get(l.productId)!) * l.qty, 0));
-  const printTotal = roundMoney(lines.reduce((a, l) => a + personalizationPrice(products.get(l.productId)!, l.mode) * l.qty, 0));
+  const itemsTotal = roundMoney(lines.reduce((a, l) => a + productPrice(products.get(l.productId)!, { color: l.color, qty: l.qty }).price, 0));
 
   const hydrated = useCartHydrated();
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
@@ -67,7 +66,7 @@ export function CartView() {
             {lines.map((l) => {
               const p = products.get(l.productId)!;
               const img = p.images[0];
-              const unit = productPrice(p, l.mode);
+              const unit = productPrice(p, { color: l.color });
               const thumb = l.designPath ? designUrls[l.designPath] : undefined;
               return (
                 <div className="row" key={l.key}>
@@ -80,7 +79,7 @@ export function CartView() {
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                       <Link className="card-name" href={`/products/${p.slug}`} style={{ fontSize: 16 }}>{p.name_ar}</Link>
-                      <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText(l)}</span>
+                      <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</span>
                       <PriceDisplay {...unit} style={{ fontSize: 14 }} />
                       <div style={{ display: "flex", gap: 16 }}>
                         <Link className="rm" href={`/products/${p.slug}?edit=${encodeURIComponent(l.key)}`} style={{ display: "inline-flex", alignItems: "center" }}>عدّل</Link>
@@ -99,10 +98,9 @@ export function CartView() {
           <aside className="sum rise d2" aria-label="ملخص الطلب">
             <h2 style={{ margin: "0 0 4px", fontSize: 20 }}>ملخص الطلب</h2>
             <div className="sl"><span className="muted">المنتجات ({count})</span><span className="price">{formatPrice(itemsTotal)}</span></div>
-            <div className="sl"><span className="muted">الطباعة والتخصيص</span><span className="price">{formatPrice(printTotal)}</span></div>
             <div className="sl"><span className="muted">الشحن</span><span style={{ fontSize: 14 }}>بيتحسب في الخطوة الجاية</span></div>
             <div style={{ height: 1, background: "#dcd8d1" }} />
-            <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(roundMoney(itemsTotal + printTotal))}</span></div>
+            <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(itemsTotal)}</span></div>
             <Button href="/checkout" arrow block>إتمام الطلب</Button>
           </aside>
         </div>

@@ -1984,18 +1984,12 @@
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
-.color-swatch--black {
-  background: #1a1a1a;
-}
-.color-swatch--white {
-  background: #ffffff;
+/* the swatch colour comes from public.colors (inline background); light colours get an edge */
+.color-swatch--light {
   border-color: #d0ccc6;
 }
-.color-swatch--white.on {
+.color-swatch--light.on {
   border-color: var(--ink);
-}
-.color-swatch--pink {
-  background: #f4a7c0;
 }
 .fonts {
   display: grid;

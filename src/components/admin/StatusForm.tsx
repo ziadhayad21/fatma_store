@@ -14,21 +14,24 @@ export function StatusForm({ id, status, compact = false }: { id: string; status
   const titleId = useId();
   const reasonId = useId();
 
-  // Keep select in sync with status prop from server
-  useEffect(() => {
+  // Keep the target in sync with the status prop from the server (the <select> remounts via key={status}).
+  const [syncedStatus, setSyncedStatus] = useState(status);
+  if (syncedStatus !== status) {
+    setSyncedStatus(status);
     setTargetStatus(status);
-    if (selectRef.current) {
-      selectRef.current.value = status;
-    }
-  }, [status]);
+  }
 
-  // Close dialog on successful update
-  useEffect(() => {
+  // After a successful update: reset the dialog fields (during render) and close it (DOM, in an effect).
+  const [seenState, setSeenState] = useState(state);
+  if (seenState !== state) {
+    setSeenState(state);
     if (state.ok) {
-      dialogRef.current?.close();
       setReason("");
       setReturnAttempted(false);
     }
+  }
+  useEffect(() => {
+    if (state.ok) dialogRef.current?.close();
   }, [state]);
 
   function handleSelectChange(event: React.ChangeEvent<HTMLSelectElement>) {

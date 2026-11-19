@@ -1,4 +1,4 @@
-import { COLOR_LABEL, DEPOSIT_LABEL, type ProductColor, type DepositStatus } from "@/lib/product-rules";
+import { colorLabel, DEPOSIT_LABEL, type ProductColor, type DepositStatus } from "@/lib/product-rules";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -53,6 +53,7 @@ type OrderRow = {
     text: string | null;
     font: FontId | null;
     color: ProductColor | null;
+    color_name?: string | null;
     design_path: string | null;
     unit_price: number;
     original_unit_price?: number | string | null;
@@ -128,7 +129,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
                       : it.mode === "design"
                         ? "بتصميمك"
                         : "زي ما هو"}
-                    {it.color && ` — اللون: ${COLOR_LABEL[it.color]}`}
+                    {it.color && ` — اللون: ${colorLabel(it)}`}
                   </div>
                   {design && (
                     <a className="order-design-preview" href={design} target="_blank" rel="noreferrer">
@@ -149,7 +150,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
         </section>
 
         <div className="sum" style={{ position: "static", marginTop: 32 }}>
-          <div className="sl"><span className="muted">المنتجات والتخصيص</span><span className="price">{formatPrice(Number(order.subtotal))}</span></div>
+          <div className="sl"><span className="muted">المنتجات</span><span className="price">{formatPrice(Number(order.subtotal))}</span></div>
           <div className="sl"><span className="muted">الشحن</span><span className="price">{formatPrice(Number(order.shipping))}</span></div>
           <div style={{ height: 1, background: "#dcd8d1" }} />
           <div className="sl" style={{ fontSize: 18 }}><span>الإجمالي</span><span>{formatPrice(Number(order.total))}</span></div>

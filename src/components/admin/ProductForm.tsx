@@ -9,6 +9,8 @@ import type { ProductImage } from "@/lib/types";
 import { CatalogSlugField } from "./CatalogSlugField";
 import { ImagesField } from "./ImagesField";
 
+export type ProductColorValue = { id: string; name_ar: string; hex: string; available: boolean; price: string };
+
 export type ProductFormValues = {
   id: string; // "new" for a new product
   name_ar: string;
@@ -19,24 +21,37 @@ export type ProductFormValues = {
   care_ar: string;
   base_price: string;
   discount_percent: string;
-  personalization_fee: string;
   sort: string;
   is_active: boolean;
   images: ProductImage[];
+  /** every active colour; used when the category sells by colour */
+  colors: ProductColorValue[];
 };
 
-export function ProductForm({ values: v, categories }: { values: ProductFormValues; categories: { id: string; name_ar: string }[] }) {
+type CategoryOption = { id: string; name_ar: string; has_colors: boolean };
+
+export function ProductForm({ values: v, categories }: { values: ProductFormValues; categories: CategoryOption[] }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveProduct, { ok: false, message: "" });
   const [uploading, setUploading] = useState(false);
   const [name, setName] = useState(v.name_ar);
+  const [categoryId, setCategoryId] = useState(v.category_id);
   const [regularPrice, setRegularPrice] = useState(v.base_price);
+  const [colors, setColors] = useState(v.colors);
   const [discountEnabled, setDiscountEnabled] = useState(v.discount_percent !== "");
   const [discount, setDiscount] = useState(v.discount_percent);
-  const parsedPrice = parseMoney(regularPrice);
+  const hasColors = categories.find((c) => c.id === categoryId)?.has_colors ?? false;
+
+  const patchColor = (id: string, patch: Partial<ProductColorValue>) =>
+    setColors((list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+  // discount preview: the single price, or the lowest available colour price
+  const colorPrices = colors.filter((c) => c.available).map((c) => parseMoney(c.price)).filter((n): n is number => typeof n === "number");
+  const previewBase = hasColors ? (colorPrices.length ? Math.min(...colorPrices) : null) : parseMoney(regularPrice);
   const parsedDiscount = parseMoney(discount, 100);
-  const preview = typeof parsedPrice === "number" && typeof parsedDiscount === "number" && validDiscountPercent(parsedDiscount)
-    ? productPrice({ base_price: parsedPrice, discount_percent: parsedDiscount, personalization_fee: 0 })
+  const preview = typeof previewBase === "number" && typeof parsedDiscount === "number" && validDiscountPercent(parsedDiscount)
+    ? productPrice({ base_price: previewBase, discount_percent: parsedDiscount })
     : null;
+
   const e = state.fieldErrors ?? {};
   const err = (k: string) => (e[k] ? <span className="adm-err" role="alert">{e[k]}</span> : null);
   return (
@@ -50,7 +65,7 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
         </div>
         <div className="adm-f">
           <label htmlFor="category_id">القسم</label>
-          <select id="category_id" name="category_id" defaultValue={v.category_id} required aria-invalid={!!e.category_id}>
+          <select id="category_id" name="category_id" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required aria-invalid={!!e.category_id}>
             <option value="" disabled>اختار القسم</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name_ar}</option>)}
           </select>
@@ -58,19 +73,54 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
         </div>
       </div>
       <CatalogSlugField name={name} savedSlug={v.slug} kind="product" />
-      <div className="adm-row">
-        <div className="adm-f">
-          <label htmlFor="base_price">السعر الأصلي (ج.م)</label>
-          <input id="base_price" name="base_price" type="text" inputMode="decimal" value={regularPrice} onChange={(event) => setRegularPrice(event.target.value)} required dir="ltr" aria-invalid={!!e.base_price} />
-          {err("base_price")}
+
+      {hasColors ? (
+        <fieldset className="adm-f adm-colors" aria-describedby="colors-hint">
+          <legend className="lbl">الألوان والسعر (ج.م)</legend>
+          <span className="adm-hint" id="colors-hint">فعّل الألوان المتاحة واكتب سعر كل لون. لازم لون واحد على الأقل. السعر واحد مهما كانت طريقة الطلب.</span>
+          {colors.length === 0 && <span className="adm-err" role="alert">مفيش ألوان مفعّلة في قاعدة البيانات.</span>}
+          {colors.map((c) => (
+            <div className="adm-color-row" key={c.id} data-off={!c.available || undefined}>
+              <label className="adm-check">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  name={`color_available_${c.id}`}
+                  checked={c.available}
+                  onChange={(event) => patchColor(c.id, { available: event.target.checked })}
+                />
+                <span className="adm-swatch" style={{ background: c.hex }} aria-hidden="true" />
+                <span>{c.name_ar}</span>
+                <span className="adm-hint">{c.available ? "متاح" : "غير متاح"}</span>
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                name={`color_price_${c.id}`}
+                value={c.price}
+                onChange={(event) => patchColor(c.id, { price: event.target.value })}
+                required={c.available}
+                placeholder="السعر"
+                aria-label={`سعر اللون ${c.name_ar}`}
+                aria-invalid={!!e[`color_${c.id}`]}
+              />
+              {err(`color_${c.id}`)}
+            </div>
+          ))}
+          {err("colors")}
+        </fieldset>
+      ) : (
+        <div className="adm-row">
+          <div className="adm-f">
+            <label htmlFor="base_price">السعر (ج.م)</label>
+            <input id="base_price" name="base_price" type="text" inputMode="decimal" value={regularPrice} onChange={(event) => setRegularPrice(event.target.value)} required dir="ltr" aria-invalid={!!e.base_price} />
+            <span className="adm-hint">السعر واحد مهما كانت طريقة الطلب.</span>
+            {err("base_price")}
+          </div>
         </div>
-        <div className="adm-f">
-          <label htmlFor="personalization_fee">تكلفة الطباعة / التخصيص (ج.م)</label>
-          <input id="personalization_fee" name="personalization_fee" type="text" inputMode="decimal" defaultValue={v.personalization_fee} required dir="ltr" aria-invalid={!!e.personalization_fee} />
-          <span className="adm-hint">بتتضاف على السعر لما العميل يختار «باسمك» أو «بتصميمك».</span>
-          {err("personalization_fee")}
-        </div>
-      </div>
+      )}
+
       <div className="adm-f">
         <label className="adm-check">
           <input type="checkbox" role="switch" name="discount_enabled" checked={discountEnabled} onChange={(event) => setDiscountEnabled(event.target.checked)} />
@@ -81,11 +131,12 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
             <div className="adm-f">
               <label htmlFor="discount_percent">نسبة الخصم (%)</label>
               <input id="discount_percent" name="discount_percent" type="text" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} required dir="ltr" aria-invalid={!!e.discount_percent} />
+              {hasColors && <span className="adm-hint">بتتطبق على سعر كل لون.</span>}
               {err("discount_percent")}
             </div>
             <div className="adm-f" aria-live="polite">
-              <span className="lbl">معاينة السعر</span>
-              {preview ? <PriceDisplay {...preview} /> : <span className="adm-hint">اكتب السعر الأصلي ونسبة خصم صحيحة.</span>}
+              <span className="lbl">معاينة السعر{hasColors ? " (أقل لون)" : ""}</span>
+              {preview ? <PriceDisplay {...preview} /> : <span className="adm-hint">اكتب السعر ونسبة خصم صحيحة.</span>}
             </div>
           </div>
         )}

@@ -7,9 +7,9 @@ import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
-import { productRules, COLORS, COLOR_LABEL, type ProductColor } from "@/lib/product-rules";
+import { productRules, type ProductColor } from "@/lib/product-rules";
 import { normalizeName, validateName } from "@/lib/personalization";
-import { productPrice } from "@/lib/pricing/discount";
+import { findColor, productPrice } from "@/lib/pricing/discount";
 import type { FontId, OrderMode, Product } from "@/lib/types";
 import { designUploader } from "@/lib/upload";
 import { useCart, type CartLine } from "@/store/cart";
@@ -18,11 +18,19 @@ import { DesignPanel, type DesignState } from "./DesignPanel";
 import { NamePanel } from "./NamePanel";
 import { PriceDisplay } from "./PriceDisplay";
 
-const WAYS: { id: OrderMode; title: string; sub: string; extra: string }[] = [
-  { id: "standard", title: "زي ما هو", sub: "المنتج بتصميمه الأصلي", extra: "" },
-  { id: "name", title: "اكتب اسمك عليه", sub: "اسم أو كلمة بالخط اللي يعجبك", extra: "+ طباعة" },
-  { id: "design", title: "ارفع تصميمك", sub: "لوجو، رسمة أو صورة", extra: "+ طباعة" },
+// One price whatever the option: none of them adds a printing cost.
+const WAYS: { id: OrderMode; title: string; sub: string }[] = [
+  { id: "standard", title: "زي ما هو", sub: "المنتج بتصميمه الأصلي" },
+  { id: "name", title: "اكتب اسمك عليه", sub: "اسم أو كلمة بالخط اللي يعجبك" },
+  { id: "design", title: "ارفع تصميمك", sub: "لوجو، رسمة أو صورة" },
 ];
+
+/** Light swatches (white, cream…) need a visible edge. */
+function isLight(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return 0.299 * r + 0.587 * g + 0.114 * b > 200;
+}
 
 /**
  * `?edit=<cart line key>` (from the cart's "عدّل") opens this page pre-filled with that line;
@@ -47,7 +55,12 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
   const router = useRouter();
   const editing = initial !== null;
   const rules = productRules(p);
-  const [color, setColor] = useState<ProductColor>(initial?.color ?? "black");
+  // the line's colour when editing (if still sold), otherwise the first available colour
+  const [color, setColor] = useState<ProductColor | null>(
+    findColor(p, initial?.color)?.id ?? p.colors[0]?.id ?? null,
+  );
+  const noColors = rules.colors && p.colors.length === 0;
+  const lineColor = rules.colors ? color : null;
   const [mode, setMode] = useState<OrderMode>(rules.customization ? initial?.mode ?? "standard" : "standard");
   const [qty, setQty] = useState(initial?.qty ?? 1);
   const [name, setName] = useState(initial?.text ?? "");
@@ -63,9 +76,10 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
   const openCart = useUI((s) => s.openCart);
 
   // Add-to-cart stays disabled until the chosen option is complete.
-  const cantAdd = (mode === "name" && !validateName(name).ok) || (mode === "design" && design.status !== "done");
-  const cantAddMsg =
-    mode === "name"
+  const cantAdd = noColors || (mode === "name" && !validateName(name).ok) || (mode === "design" && design.status !== "done");
+  const cantAddMsg = noColors
+    ? "المنتج ده مش متاح دلوقتي."
+    : mode === "name"
       ? "اكتب الاسم الأول عشان تقدر تضيفه للسلة."
       : design.status === "uploading"
         ? "استنى لحد ما التصميم يخلّص رفع."
@@ -74,12 +88,12 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
   function buildLine() {
     const cleanNotes = (mode === "name" || mode === "design") && customizationNotes.trim() ? customizationNotes.trim() : null;
     if (mode === "name") {
-      return { productId: p.slug, mode, text: normalizeName(name), font: rules.textile ? null : font, color: rules.textile ? color : null, designPath: null, designName: null, notes: cleanNotes, qty } as const;
+      return { productId: p.slug, mode, text: normalizeName(name), font: rules.font ? font : null, color: lineColor, designPath: null, designName: null, notes: cleanNotes, qty } as const;
     }
     if (mode === "design" && design.status === "done") {
-      return { productId: p.slug, mode, text: null, font: null, designPath: design.path, designName: design.name, color: rules.textile ? color : null, notes: cleanNotes, qty } as const;
+      return { productId: p.slug, mode, text: null, font: null, designPath: design.path, designName: design.name, color: lineColor, notes: cleanNotes, qty } as const;
     }
-    return { productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: rules.textile ? color : null, notes: null, qty } as const;
+    return { productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: lineColor, notes: null, qty } as const;
   }
 
   function submit() {
@@ -104,11 +118,8 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
           {p.category_name}
         </Link>
         <h1 style={{ fontSize: 34, lineHeight: 1.25 }}>{p.name_ar}</h1>
-        <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }}>
-          <PriceDisplay {...productPrice(p, mode)} style={{ fontSize: 20 }} />
-          {mode !== "standard" && (
-            <span className="rise" style={{ fontSize: 14, color: "var(--accent)" }}>+ تكلفة الطباعة</span>
-          )}
+        <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12 }} aria-live="polite">
+          <PriceDisplay {...productPrice(p, { color: lineColor })} style={{ fontSize: 20 }} />
         </div>
         <p className="muted" style={{ margin: "4px 0 0", fontSize: 15 }}>{p.description_ar}</p>
       </div>
@@ -131,14 +142,13 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
                   <span className="rd" aria-hidden="true"><i /></span>
                   <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                     <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
-                    <span className="muted" style={{ fontSize: 13 }}>{rules.textile && w.id === "name" ? "اسم أو كلمة باللون اللي يعجبك" : w.sub}</span>
+                    <span className="muted" style={{ fontSize: 13 }}>{!rules.font && w.id === "name" ? "اسم أو كلمة باللون اللي يعجبك" : w.sub}</span>
                   </span>
-                  <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>{w.extra}</span>
                 </button>
 
                 {on && w.id === "name" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <NamePanel name={name} font={font} onName={setName} onFont={setFont} hideFont={rules.textile} />
+                    <NamePanel name={name} font={font} onName={setName} onFont={setFont} hideFont={!rules.font} />
                     <div className="panel" style={{ marginTop: 0 }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         <label htmlFor="customization-notes-name" className="lbl">
@@ -205,19 +215,20 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
         </div>
       </div>}
 
-      {rules.textile && (
+      {rules.colors && p.colors.length > 0 && (
         <div className="panel">
           <span className="lbl" id="color-l">اللون</span>
           <div className="color-swatches" role="group" aria-labelledby="color-l">
-            {COLORS.map((c) => (
+            {p.colors.map((c) => (
               <button
-                key={c}
+                key={c.id}
                 type="button"
-                className={`color-swatch color-swatch--${c}${color === c ? " on" : ""}`}
-                aria-pressed={color === c}
-                aria-label={COLOR_LABEL[c]}
-                title={COLOR_LABEL[c]}
-                onClick={() => setColor(c)}
+                className={`color-swatch${isLight(c.hex) ? " color-swatch--light" : ""}${color === c.id ? " on" : ""}`}
+                style={{ background: c.hex }}
+                aria-pressed={color === c.id}
+                aria-label={c.name_ar}
+                title={c.name_ar}
+                onClick={() => setColor(c.id)}
               />
             ))}
           </div>

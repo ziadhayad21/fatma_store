@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCartProducts } from "@/app/actions/cart";
 import type { Product } from "@/lib/types";
-import { isProductColor, productRules } from "@/lib/product-rules";
+import { findColor } from "@/lib/pricing/discount";
+import { productRules } from "@/lib/product-rules";
 import { useCart } from "@/store/cart";
 
 /**
@@ -29,10 +30,12 @@ export function useCartProducts(refreshKey?: unknown) {
           const product = map.get(line.productId);
           if (!product) continue;
           const rules = productRules(product);
-          if (!rules.customization && (line.mode !== "standard" || line.text || line.font || line.designPath || line.designName || line.color || line.notes)) {
-            useCart.getState().replace(line.key, { ...line, mode: "standard", text: null, font: null, designPath: null, designName: null, color: null, notes: null });
-          } else if (rules.textile && (!isProductColor(line.color) || line.font)) {
-            useCart.getState().replace(line.key, { ...line, color: isProductColor(line.color) ? line.color : "black", font: null });
+          // a colour that is no longer sold falls back to the first available one (its price is shown)
+          const color = rules.colors ? (findColor(product, line.color)?.id ?? product.colors[0]?.id ?? line.color ?? null) : null;
+          if (!rules.customization && (line.mode !== "standard" || line.text || line.font || line.designPath || line.designName || line.notes)) {
+            useCart.getState().replace(line.key, { ...line, mode: "standard", text: null, font: null, designPath: null, designName: null, color, notes: null });
+          } else if ((line.color ?? null) !== color || (!rules.font && line.font)) {
+            useCart.getState().replace(line.key, { ...line, color, font: rules.font ? line.font : null });
           }
         }
         setState({ key: slugKey, map });
