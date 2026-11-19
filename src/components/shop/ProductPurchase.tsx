@@ -126,14 +126,80 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
           {WAYS.map((w) => {
             const on = mode === w.id;
             return (
-              <button key={w.id} type="button" className={`opt${on ? " on" : ""}`} aria-pressed={on} onClick={() => setMode(w.id)}>
-                <span className="rd" aria-hidden="true"><i /></span>
-                <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
-                  <span className="muted" style={{ fontSize: 13 }}>{rules.textile && w.id === "name" ? "اسم أو كلمة باللون اللي يعجبك" : w.sub}</span>
-                </span>
-                <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>{w.extra}</span>
-              </button>
+              <div key={w.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button type="button" className={`opt${on ? " on" : ""}`} aria-pressed={on} onClick={() => setMode(w.id)}>
+                  <span className="rd" aria-hidden="true"><i /></span>
+                  <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                    <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
+                    <span className="muted" style={{ fontSize: 13 }}>{rules.textile && w.id === "name" ? "اسم أو كلمة باللون اللي يعجبك" : w.sub}</span>
+                  </span>
+                  <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>{w.extra}</span>
+                </button>
+
+                {on && w.id === "name" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <NamePanel name={name} font={font} onName={setName} onFont={setFont} hideFont={rules.textile} />
+                    <div className="panel" style={{ marginTop: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <label htmlFor="customization-notes-name" className="lbl">
+                          <span>ملاحظات التخصيص (اختياري)</span>
+                          <span className="muted" aria-live="polite">{[...customizationNotes].length}/500</span>
+                        </label>
+                        <textarea
+                          id="customization-notes-name"
+                          className="inp"
+                          style={{
+                            width: "100%",
+                            minHeight: 76,
+                            height: "auto",
+                            padding: "10px 14px",
+                            resize: "vertical",
+                            fontSize: 14,
+                            lineHeight: 1.5,
+                            borderRadius: 0,
+                          }}
+                          maxLength={500}
+                          placeholder="مثلاً: صغّر حجم الاسم، أو ضع التصميم في موضع محدد، أو أي تعليمات خاصة."
+                          value={customizationNotes}
+                          onChange={(e) => setCustomizationNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {on && w.id === "design" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <DesignPanel value={design} onChange={setDesign} />
+                    <div className="panel" style={{ marginTop: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <label htmlFor="customization-notes-design" className="lbl">
+                          <span>ملاحظات التخصيص (اختياري)</span>
+                          <span className="muted" aria-live="polite">{[...customizationNotes].length}/500</span>
+                        </label>
+                        <textarea
+                          id="customization-notes-design"
+                          className="inp"
+                          style={{
+                            width: "100%",
+                            minHeight: 76,
+                            height: "auto",
+                            padding: "10px 14px",
+                            resize: "vertical",
+                            fontSize: 14,
+                            lineHeight: 1.5,
+                            borderRadius: 0,
+                          }}
+                          maxLength={500}
+                          placeholder="مثلاً: صغّر حجم الاسم، أو ضع التصميم في موضع محدد، أو أي تعليمات خاصة."
+                          value={customizationNotes}
+                          onChange={(e) => setCustomizationNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -154,36 +220,6 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
                 onClick={() => setColor(c)}
               />
             ))}
-          </div>
-        </div>
-      )}
-      {mode === "name" && <NamePanel name={name} font={font} onName={setName} onFont={setFont} hideFont={rules.textile} />}
-      {mode === "design" && <DesignPanel value={design} onChange={setDesign} />}
-      {rules.customization && (mode === "name" || mode === "design") && (
-        <div className="panel" style={{ marginTop: -14 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label htmlFor="customization-notes" className="lbl">
-              <span>ملاحظات إضافية للتخصيص (اختياري)</span>
-              <span className="muted" aria-live="polite">{[...customizationNotes].length}/500</span>
-            </label>
-            <textarea
-              id="customization-notes"
-              className="inp"
-              style={{
-                width: "100%",
-                minHeight: 76,
-                height: "auto",
-                padding: "10px 14px",
-                resize: "vertical",
-                fontSize: 14,
-                lineHeight: 1.5,
-                borderRadius: 0,
-              }}
-              maxLength={500}
-              placeholder="مثلاً: صغّر حجم الاسم، أو ضع التصميم في موضع محدد، أو أي تعليمات خاصة."
-              value={customizationNotes}
-              onChange={(e) => setCustomizationNotes(e.target.value)}
-            />
           </div>
         </div>
       )}
