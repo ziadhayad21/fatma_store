@@ -27,10 +27,10 @@ async function insertCatalogRecord(
   table: "products" | "categories",
   kind: CatalogSlugKind,
   row: { name_ar: string } & Record<string, unknown>,
-  /** a slug the admin typed for a new record (cleaned the same way); otherwise it comes from the name */
-  wanted?: string,
 ) {
-  const base = wanted ? catalogSlug(wanted, kind) : catalogSlug(row.name_ar, kind);
+  // the slug comes from the name (Arabic transliterated, lowercase, hyphens), made unique with -2, -3…;
+  // it is set once on create and never changed by an edit, so shared links keep working
+  const base = catalogSlug(row.name_ar, kind);
   const candidates = [
     base,
     ...Array.from({ length: 20 }, (_, i) => slugWithSuffix(base, kind, String(i + 2))),
@@ -138,9 +138,6 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   if (couples && UUID.test(category_id) && !cats?.find((c) => c.id === category_id)?.allows_couples) {
     errors.product_type = "القسم ده مش بيسمح بمنتجات كابلز. اختار نوع تاني أو قسم تاني.";
   }
-  // new products may get a hand-typed slug (existing ones keep theirs: carts and links point to it)
-  const wantedSlug = isNew ? txt(formData, "slug").toLowerCase() : "";
-  if (wantedSlug && !SLUG_RE.test(catalogSlug(wantedSlug, "product"))) errors.slug = "الرابط لازم يكون حروف إنجليزي وأرقام وشرطة (-) بس.";
 
   // One price per product, or one per colour. The ordering option never changes it.
   // Couples products: ONE fixed price for the pair; their colours are only switched on/off (each colour
@@ -209,7 +206,7 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   };
 
   const saved = isNew
-    ? await insertCatalogRecord(supabase, "products", "product", row, wantedSlug || undefined)
+    ? await insertCatalogRecord(supabase, "products", "product", row)
     : (await supabase.from("products").update(row).eq("id", id).select("id, slug").single()).data;
   if (!saved) return { ok: false, message: "تعذّر الحفظ." };
 

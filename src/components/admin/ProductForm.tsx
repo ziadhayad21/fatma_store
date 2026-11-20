@@ -5,7 +5,6 @@ import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { saveProduct, type SaveState } from "@/app/actions/admin-catalog";
 import { DiyIllustration, diyKind } from "@/components/shop/DiyIllustration";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
-import { catalogSlug } from "@/lib/admin/slug";
 import { parseMoney } from "@/lib/admin/validate";
 import { DEFAULT_PIECE_LABELS, PIECE_LABEL_MAX } from "@/lib/couples";
 import { productPrice, validDiscountPercent } from "@/lib/pricing/discount";
@@ -63,7 +62,6 @@ export function ProductForm({
 }) {
   const uid = useId();
   const formRef = useRef<HTMLFormElement>(null);
-  const isNew = v.id === "new";
 
   // ---------------------------------------------------------------- state
   const [dirty, setDirty] = useState(false);
@@ -86,8 +84,6 @@ export function ProductForm({
   const [uploading, setUploading] = useState(false);
 
   const [name, setName] = useState(v.name_ar);
-  const [slugOpen, setSlugOpen] = useState(false);
-  const [slugInput, setSlugInput] = useState("");
   const [categoryId, setCategoryId] = useState(v.category_id);
   const [type, setType] = useState<ProductType>(v.is_couples ? "couples" : v.is_diy ? "diy" : "normal");
   const [typeNotice, setTypeNotice] = useState("");
@@ -141,7 +137,6 @@ export function ProductForm({
     ? productPrice({ base_price: previewBase, discount_percent: discountEnabled && discountOk ? (parsedDiscount as number) : null })
     : null;
   const previewFrom = perColorPrices && new Set(colorPrices).size > 1;
-  const slugPreview = v.slug || (slugOpen && slugInput.trim() ? catalogSlug(slugInput, "product") : name.trim() ? catalogSlug(name, "product") : "");
 
   // ---------------------------------------------------------------- validation (the server checks again)
   function validate(): Record<string, string> {
@@ -206,25 +201,6 @@ export function ProductForm({
               <label htmlFor="name_ar">اسم المنتج</label>
               <input id="name_ar" name="name_ar" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={160} aria-invalid={!!errors.name_ar} placeholder="مثلاً: مريلة مطبخ Chef" />
               {err("name_ar")}
-              <div className="adm-slug">
-                <span>رابط المنتج: <bdi dir="ltr">/products/{slugPreview || "…"}</bdi></span>
-                {isNew ? (
-                  !slugOpen && (
-                    <button type="button" className="adm-link" onClick={() => { setSlugOpen(true); setSlugInput(slugPreview); }}>
-                      تعديل
-                    </button>
-                  )
-                ) : (
-                  <span className="adm-hint">(ثابت بعد الإنشاء)</span>
-                )}
-              </div>
-              {isNew && slugOpen && (
-                <div className="adm-slug-edit" data-field="slug">
-                  <input name="slug" type="text" dir="ltr" value={slugInput} onChange={(e) => setSlugInput(e.target.value)} maxLength={80} aria-label="رابط المنتج" aria-invalid={!!errors.slug} />
-                  <span className="adm-hint">حروف إنجليزي صغيرة وأرقام وشرطة (-). لو مستخدم هنضيف له رقم.</span>
-                  {err("slug")}
-                </div>
-              )}
             </div>
             <div className="adm-f" data-field="category_id">
               <label htmlFor="category_id">القسم</label>

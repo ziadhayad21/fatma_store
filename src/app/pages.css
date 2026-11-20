@@ -930,8 +930,6 @@
   padding-block: 36px 28px;
   gap: 12px;
 }
-.collection-page .crumb { align-self: flex-start; margin-bottom: 4px; }
-.collection-page .crumb a { color: #858590; }
 .collection-kicker {
   color: #858590;
   font-size: 12px;
@@ -1575,6 +1573,15 @@
 }
 
 /* Product page */
+/* product page: the breadcrumb is gone (JSON-LD only), this keeps the space above the gallery */
+.pdp-top {
+  padding-top: 48px;
+}
+@media (max-width: 600px) {
+  .pdp-top {
+    padding-top: 20px;
+  }
+}
 .pdp {
   display: grid;
   /* The storefront is RTL, so the first column (gallery) is on the right. */

@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { Rays } from "@/components/ui/CategoryIcon";
 import { Tile } from "@/components/ui/Tile";
 import { getCategories, getCategory, getCollectionPage, getDiyProduct } from "@/lib/catalog";
+import { breadcrumbJsonLd, jsonLdHtml } from "@/lib/structured-data";
 import type { Category, ProductSort } from "@/lib/types";
 import { collectionFonts } from "../_fonts";
 
@@ -50,12 +51,17 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
 
   return (
     <div className={`collection-page ${collectionFonts}`}>
+      {/* no visible breadcrumb; the trail stays for search engines */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLdHtml(
+          breadcrumbJsonLd([
+            { name: "الرئيسية", path: "/" },
+            { name: category.name_ar, path: `/collections/${category.slug}` },
+          ]),
+        )}
+      />
       <section className="wrap col-head">
-        <nav className="crumb rise" aria-label="مسار الصفحة">
-          <Link href="/">الرئيسية</Link>
-          <span aria-hidden="true">/</span>
-          <span style={{ color: "var(--ink)" }}>{category.name_ar}</span>
-        </nav>
         <span className="collection-pill-badge rise d1">اكتشف مجموعتنا</span>
         <h1 className="collection-title with-rays rise d1">
           <span className="title-rays left-rays" aria-hidden="true">

@@ -10,6 +10,7 @@ import { Icon } from "@/components/ui/Icon";
 import { getProduct, getRelatedProducts } from "@/lib/catalog";
 import { publicEnv } from "@/lib/env";
 import { fromPrice } from "@/lib/pricing/discount";
+import { breadcrumbJsonLd, jsonLdHtml } from "@/lib/structured-data";
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -61,16 +62,20 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
       <script
         type="application/ld+json"
         // "<" escaped so a product name can never close the script tag
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        dangerouslySetInnerHTML={jsonLdHtml(jsonLd)}
       />
-      <nav className="crumb crumb-pad" aria-label="مسار الصفحة">
-        <Link href="/">الرئيسية</Link>
-        <span aria-hidden="true">/</span>
-        <Link href={`/collections/${product.category_slug}`}>{product.category_name}</Link>
-        <span aria-hidden="true">/</span>
-        <span style={{ color: "var(--ink)" }}>{product.name_ar}</span>
-      </nav>
-      <div className="pdp">
+      {/* no visible breadcrumb; the trail stays for search engines */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLdHtml(
+          breadcrumbJsonLd([
+            { name: "الرئيسية", path: "/" },
+            { name: product.category_name, path: `/collections/${product.category_slug}` },
+            { name: product.name_ar, path: `/products/${product.slug}` },
+          ]),
+        )}
+      />
+      <div className="pdp pdp-top">
         <ProductGallery images={product.images} diy={product.is_diy ? diyKind(product.category_slug) : null} />
         <ProductPurchase product={product} />
       </div>
