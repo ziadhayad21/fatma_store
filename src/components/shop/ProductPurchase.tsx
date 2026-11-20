@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
@@ -20,6 +19,7 @@ import { DesignPanel, type DesignState } from "./DesignPanel";
 import { isLight } from "./swatch";
 import { NamePanel } from "./NamePanel";
 import { PriceDisplay } from "./PriceDisplay";
+import { ProductInfo } from "./ProductInfo";
 
 // One price whatever the option: none of them adds a printing cost.
 const WAYS: { id: OrderMode; title: string; sub: string }[] = [
@@ -248,16 +248,7 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
         {cantAdd && <span className="muted" style={{ fontSize: 13 }}>{cantAddMsg}</span>}
       </div>
 
-      <div className="rise d4">
-        <Accordion
-          defaultOpen={null}
-          items={[
-            { title: "تفاصيل المنتج", body: p.details_ar },
-            { title: "العناية بالقماش", body: p.care_ar },
-            { title: "الشحن والاسترجاع", body: "هنا هتتضاف مدة التجهيز والتوصيل وسياسة الاسترجاع." },
-          ]}
-        />
-      </div>
+      <ProductInfo product={p} />
     </div>
   );
 }

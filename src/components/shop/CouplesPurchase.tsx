@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
@@ -18,6 +17,7 @@ import { useCart, type CartLine } from "@/store/cart";
 import { useUI } from "@/store/ui";
 import { DesignPanel, type DesignState } from "./DesignPanel";
 import { PriceDisplay } from "./PriceDisplay";
+import { ProductInfo } from "./ProductInfo";
 import { isLight } from "./swatch";
 
 // Same three options, worded for two. None of them changes the price.
@@ -284,16 +284,7 @@ export function CouplesForm({ product: p, initial }: { product: Product; initial
         {cantAdd && <span className="muted" style={{ fontSize: 13 }} role="status">{cantAddMsg}</span>}
       </div>
 
-      <div className="rise d4">
-        <Accordion
-          defaultOpen={null}
-          items={[
-            { title: "تفاصيل المنتج", body: p.details_ar },
-            { title: "العناية بالقماش", body: p.care_ar },
-            { title: "الشحن والاسترجاع", body: "هنا هتتضاف مدة التجهيز والتوصيل وسياسة الاسترجاع." },
-          ]}
-        />
-      </div>
+      <ProductInfo product={p} />
     </div>
   );
 }
