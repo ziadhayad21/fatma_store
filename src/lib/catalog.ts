@@ -1,6 +1,7 @@
 // Catalog data layer - updated
 import { cacheLife, cacheTag } from "next/cache";
 import { source } from "./data/source";
+import { SUGGESTIONS_PAGE } from "./suggestions";
 import type { ShippingRate } from "./data/types";
 import type { Category, Product, ProductPage, ProductSort, PublicSuggestion, Review } from "./types";
 
@@ -15,7 +16,7 @@ import type { Category, Product, ProductPage, ProductSort, PublicSuggestion, Rev
  *        "products" — product lists (home, related)
  *        "shipping" — shipping_rates (checkout)
  *        "reviews" — published customer reviews (home)
- *        "suggestions" — suggestions the admin made public (home)
+ *        "suggestions" — customer suggestions (home)
  *        "categories" — the category list (nav, footer, chips, home tiles)
  *        "category:<slug>" — one category + the product lists of that category
  *        "product:<slug>" — one product
@@ -106,10 +107,13 @@ export async function getReviews(): Promise<Review[]> {
   return source.reviews();
 }
 
-/** Suggestions the admin made public (home page; the admin invalidates the "suggestions" tag on every change). */
+/**
+ * The newest suggestions for the home page: one page plus one more row (tells whether "عرض المزيد" shows).
+ * Every new suggestion and every admin delete invalidates the "suggestions" tag.
+ */
 export async function getPublicSuggestions(): Promise<PublicSuggestion[]> {
   "use cache";
   cacheLife("catalog");
   cacheTag(tags.suggestions);
-  return source.publicSuggestions();
+  return source.publicSuggestions({ limit: SUGGESTIONS_PAGE + 1 });
 }

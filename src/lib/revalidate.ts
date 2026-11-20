@@ -38,7 +38,7 @@ export function invalidateCatalog(opts: {
   // "catalog" is the flush-everything tag; use updateTag(tags.catalog) for bulk imports
 }
 
-/** After any admin change to suggestions (public toggle, status, reply). */
+/** After a new suggestion or an admin delete. */
 export function invalidateSuggestions() {
   updateTag(tags.suggestions);
   revalidatePath("/");

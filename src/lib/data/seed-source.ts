@@ -108,16 +108,10 @@ export const seedSource: CatalogSource = {
     return []; // never fake reviews: the home page hides the section until real ones are published
   },
 
-  /** mirrors the one sample public suggestion inserted by migration …1400 */
-  async publicSuggestions() {
-    return [
-      {
-        text: "عايزين تضيفوا مريلة أطفال بأسامي الولاد",
-        status: "reviewing",
-        admin_reply: "فكرة حلوة! بندرسها دلوقتي.",
-        created_at: "2026-11-20T00:00:00.000Z",
-      },
-    ];
+  /** mirrors the one sample suggestion inserted by migration …1400 */
+  async publicSuggestions({ before }) {
+    if (before) return [];
+    return [{ text: "عايزين تضيفوا مريلة أطفال بأسامي الولاد", created_at: "2026-11-20T00:00:00.000Z" }];
   },
 
   async shippingRates(): Promise<ShippingRate[]> {

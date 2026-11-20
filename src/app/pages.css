@@ -2464,57 +2464,76 @@
   }
 }
 
-/* ---------------------------------------------------------------- home: public suggestions */
+/* ---------------------------------------------------------------- home: suggestions (note cards) */
 .sugg {
   content-visibility: auto;
-  contain-intrinsic-size: auto 640px;
+  contain-intrinsic-size: auto 900px;
   background: #fff;
 }
 .sugg-head {
   justify-content: center;
   text-align: center;
 }
-.sugg-grid {
+.notes {
   list-style: none;
-  margin: 0 0 48px;
-  padding: 0;
+  margin: 0 auto;
+  padding: 8px 0 0;
+  max-width: 1120px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 380px));
-  justify-content: center;
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 28px 24px;
 }
-.sugg-card {
+.note {
+  --tint: #f6d6dc;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 14px;
-  padding: 24px 26px 26px;
-  background: var(--page);
-  border: 1px solid #e5ded3;
+  min-height: 150px;
+  padding: 30px 28px 22px;
+  background: var(--tint);
+  box-shadow: 0 10px 24px -20px rgba(20, 20, 20, 0.45);
+  rotate: -1.5deg;
   transition:
-    transform 0.45s var(--ease),
-    box-shadow 0.45s;
+    opacity 0.6s var(--ease) var(--d, 0ms),
+    translate 0.6s var(--ease) var(--d, 0ms),
+    rotate 0.35s var(--ease),
+    transform 0.35s var(--ease),
+    box-shadow 0.35s;
 }
-.sugg-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 24px 44px -28px rgba(20, 20, 20, 0.3);
+.note:nth-child(even) {
+  rotate: 1.5deg;
 }
-.sugg-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.6;
-  background: #f6e3a6;
-  color: #6b4e00;
+.note[data-tint="1"] {
+  --tint: #f6e3a6;
 }
-.sugg-pill[data-s="done"] {
-  background: #e9ede6;
-  color: #3f5a3a;
+.note[data-tint="2"] {
+  --tint: #e9e1d3;
 }
-.sugg-text {
+.note:hover {
+  rotate: 0deg;
+  transform: translateY(-6px);
+  box-shadow: 0 24px 40px -24px rgba(20, 20, 20, 0.4);
+}
+/* staggered fade-up (only once the board is hydrated and motion is allowed) */
+.notes[data-anim] .note:not([data-in]) {
+  opacity: 0;
+  translate: 0 22px;
+}
+.note-q {
+  position: absolute;
+  top: 6px;
+  left: 18px;
+  font-size: 68px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.16;
+  pointer-events: none;
+  user-select: none;
+}
+.note-text {
+  position: relative;
   margin: 0;
   font-size: 16px;
   line-height: 1.8;
@@ -2522,28 +2541,21 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.sugg-reply {
-  margin: auto 0 0;
-  width: 100%;
+.note-date {
+  margin-top: auto;
+  font-size: 12px;
+  color: rgba(20, 20, 20, 0.55);
+}
+.notes-more {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
-  border-inline-start: 2px solid var(--accent);
-  background: #fff;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #3a3732;
-  overflow-wrap: anywhere;
-}
-.sugg-reply-by {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent);
+  align-items: center;
+  gap: 8px;
+  margin-top: 40px;
 }
 .sugg-form-wrap {
   max-width: 640px;
-  margin-inline: auto;
+  margin: 64px auto 0;
 }
 .sugg-form {
   display: flex;
@@ -2579,25 +2591,40 @@
   font-size: 15px;
   font-weight: 500;
 }
+@media (max-width: 900px) {
+  .notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+  }
+}
 @media (max-width: 600px) {
-  .sugg-grid {
+  .notes {
     grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    margin-bottom: 36px;
+    gap: 20px;
+    padding-inline: 6px;
   }
-  .sugg-card {
-    padding: 20px;
+  .note {
+    min-height: 0;
+    padding: 26px 22px 18px;
   }
-  .sugg-form .btn {
+  .sugg-form-wrap {
+    margin-top: 48px;
+  }
+  .sugg-form .btn,
+  .notes-more .btn {
     align-self: stretch;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sugg-card {
+  .note {
     transition: none;
   }
-  .sugg-card:hover {
+  .note:hover {
     transform: none;
+  }
+  .notes[data-anim] .note:not([data-in]) {
+    opacity: 1;
+    translate: none;
   }
 }
 

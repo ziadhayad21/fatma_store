@@ -85,12 +85,8 @@ export type Review = {
   avatar_color: string | null;
 };
 
-export type SuggestionStatus = "new" | "reviewing" | "done";
-
-/** A suggestion the admin made public: the only columns the public can read. */
+/** A suggestion as the public sees it (every suggestion is public; never its id or order). */
 export type PublicSuggestion = {
   text: string;
-  status: SuggestionStatus;
-  admin_reply: string | null;
   created_at: string;
 };

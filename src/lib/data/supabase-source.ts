@@ -1,5 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import type { Category, ColorOption, Product, ProductImage, ProductPage, ProductRow, PublicSuggestion, Review, SuggestionStatus } from "@/lib/types";
+import type { Category, ColorOption, Product, ProductImage, ProductPage, ProductRow, PublicSuggestion, Review } from "@/lib/types";
 import type { CatalogSource, ShippingRate } from "./types";
 
 type JoinedColor = {
@@ -51,24 +51,21 @@ function fail(what: string, error: { message: string }): never {
 
 /** Public reads through the publishable key — RLS limits everything to active rows. */
 export const supabaseSource: CatalogSource = {
-  async publicSuggestions() {
-    // RLS returns only rows the admin made public; the public may read only these four columns
-    const { data, error } = await createPublicClient()
+  async publicSuggestions({ limit, before }) {
+    // the public may read only text + created_at (column grants); never id / order_id
+    let q = createPublicClient()
       .from("suggestions")
-      .select("text, status, admin_reply, created_at")
+      .select("text, created_at")
       .order("created_at", { ascending: false })
-      .limit(24);
+      .limit(limit);
+    if (before) q = q.lt("created_at", before);
+    const { data, error } = await q;
     if (error) {
       // never take the home page down: no suggestions = no grid (the form still shows)
       console.error("public suggestions read failed:", error.message);
       return [];
     }
-    return (data ?? []).map((s) => ({
-      text: s.text as string,
-      status: (s.status as SuggestionStatus) ?? "new",
-      admin_reply: (s.admin_reply as string | null) || null,
-      created_at: s.created_at as string,
-    })) satisfies PublicSuggestion[];
+    return (data ?? []).map((s) => ({ text: s.text as string, created_at: s.created_at as string })) satisfies PublicSuggestion[];
   },
 
   async reviews() {

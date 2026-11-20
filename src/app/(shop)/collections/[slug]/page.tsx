@@ -72,7 +72,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
       <section className="collection-products mx-auto max-w-[1192px] px-3 sm:px-4 lg:px-0">
         {/* searchParams (sort/page) are request-time: only the grid sits behind its own boundary */}
         <Suspense fallback={<GridSkeleton />}>
-          <Grid slug={slug} category={category} searchParams={searchParams} />
+          <Grid slug={slug} searchParams={searchParams} />
         </Suspense>
       </section>
 
@@ -83,11 +83,9 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
 
 async function Grid({
   slug,
-  category,
   searchParams,
 }: {
   slug: string;
-  category: Category;
   searchParams: PageProps<"/collections/[slug]">["searchParams"];
 }) {
   const sp = await searchParams;
@@ -95,9 +93,6 @@ async function Grid({
   const [{ items, total, page, pageCount }, diy] = await Promise.all([getCollectionPage(slug, sort, parsePage(sp.page)), getDiyProduct(slug)]);
   // the DIY card leads the first page, whatever the sort
   const diyFirst = page === 1 ? diy : null;
-  // promo tile only while the collection is thin (fewer than 3 products)
-  const showPromo = total < 3 && items.length > 0;
-  const promoTarget = items[0];
   const href = (p: number) => {
     const q = new URLSearchParams();
     if (sort !== "new") q.set("sort", sort);
@@ -118,29 +113,6 @@ async function Grid({
               <ProductCard key={p.slug} product={p} variant="listing" priority={i < 4} sizes={productImageSizes} />
             ))}
           </div>
-          {showPromo && promoTarget && (
-            <Tile
-              className="dept-card mt-8 w-full max-w-[280px]"
-              href={`/products/${promoTarget.slug}`}
-              src={category.image}
-              alt={category.image_alt}
-              position={category.image_position}
-              title={category.promo_title_ar || "اطلب باسمك أو بتصميمك"}
-              accent={category.accent_color}
-              sizes="280px"
-              custom={
-                <>
-                  <span className="dept-badge dept-badge-0">
-                    {category.name_ar}
-                  </span>
-                  <span className="dept-shop">Shop ←</span>
-                  <h3 className="dept-title">
-                    {({ bags: "bags", aprons: "Bibs", bibs: "Bibs", towels: "Towels" } as Record<string, string>)[category.slug] ?? category.name_ar}
-                  </h3>
-                </>
-              }
-            />
-          )}
         </>
       )}
 

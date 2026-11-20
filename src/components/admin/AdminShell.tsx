@@ -3,9 +3,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { AdminNav } from "./AdminNav";
 
 export async function AdminShell({ children }: { children: React.ReactNode }) {
-  const { supabase, user } = await requireAdmin();
-  // unread suggestions for the sidebar badge (a missing table before the migration just shows no badge)
-  const { count: unreadSuggestions } = await supabase.from("suggestions").select("id", { count: "exact", head: true }).eq("is_read", false);
+  const { user } = await requireAdmin();
   const initial = user.email ? user.email.charAt(0).toUpperCase() : "F";
 
   return (
@@ -19,7 +17,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <AdminNav badges={{ suggestions: unreadSuggestions ?? 0 }} />
+        <AdminNav />
 
         <div className="adm-user">
           <div className="adm-user-profile">

@@ -629,13 +629,13 @@ describe("suggestions (migration …1300)", () => {
   });
 
   it("admins read and mark as read, but cannot edit or delete what customers sent", async () => {
-    // (migration …1400 adds one sample public suggestion; this test looks at the customer's one)
-    const r = await as<{ text: string; is_read: boolean }>("authenticated", ADMIN, "select text, is_read from public.suggestions where not is_public");
+    // (migration …1400 adds one sample suggestion; this test looks at the customer's one)
+    const mine = "where text = 'عايزين مريلة أطفال'";
+    const r = await as<{ text: string; is_read: boolean }>("authenticated", ADMIN, `select text, is_read from public.suggestions ${mine}`);
     expect(r.rows).toEqual([{ text: "عايزين مريلة أطفال", is_read: false }]);
-    expect((await as("authenticated", ADMIN, "update public.suggestions set is_read = true where not is_public")).affected).toBe(1);
+    expect((await as("authenticated", ADMIN, `update public.suggestions set is_read = true ${mine}`)).affected).toBe(1);
     expect((await as("authenticated", ADMIN, "update public.suggestions set text = 'changed'")).error).toMatch(/only is_read/);
-    expect((await as("authenticated", ADMIN, "update public.suggestions set order_id = null where not is_public")).affected).toBe(1); // unlinking is allowed (FK set null path)
-    expect((await as("authenticated", ADMIN, "delete from public.suggestions")).code).toBe("42501");
+    expect((await as("authenticated", ADMIN, `update public.suggestions set order_id = null ${mine}`)).affected).toBe(1); // unlinking is allowed (FK set null path)
   });
 
   it("keeps the suggestion when its order is deleted", async () => {
@@ -657,26 +657,30 @@ describe("public suggestions + DIY products (migration …1400)", () => {
     expect(rows).toEqual([{ status: "reviewing", admin_reply: "فكرة حلوة! بندرسها دلوقتي.", is_public: true }]);
   });
 
-  it("anon reads only public rows, and only text / status / admin_reply / created_at", async () => {
+  it("(…1500) every suggestion is public; anon reads text + created_at only, never the order", async () => {
     await setup("insert into public.suggestions (text) values ('private one')");
-    const r = await as<{ text: string }>("anon", null, "select text, status, admin_reply, created_at from public.suggestions");
+    const { rows: [fresh] } = await db.query<{ is_public: boolean }>("select is_public from public.suggestions where text = 'private one'");
+    expect(fresh.is_public).toBe(true);
+    expect((await db.query("select 1 from public.suggestions where not is_public")).rows).toHaveLength(0);
+    const r = await as<{ text: string }>("anon", null, "select text, created_at from public.suggestions order by created_at");
     expect(r.error).toBeUndefined();
-    expect(r.rows.map((x) => x.text)).toEqual(["عايزين تضيفوا مريلة أطفال بأسامي الولاد"]);
-    for (const col of ["order_id", "id", "is_read", "is_public", "*"]) {
+    expect(r.rows.map((x) => x.text)).toContain("private one");
+    expect(r.rows.map((x) => x.text)).toContain("عايزين مريلة أطفال"); // sent with an order, still public
+    for (const col of ["order_id", "id", "is_read", "*"]) {
       expect((await as("anon", null, `select ${col} from public.suggestions`)).code).toBe("42501");
     }
-    expect((await as("anon", null, "update public.suggestions set status = 'done'")).code).toBe("42501");
-    // logged-in non-admins still see nothing
+    for (const sql of ["update public.suggestions set text = 'x'", "delete from public.suggestions", "insert into public.suggestions (text) values ('spam')"]) {
+      expect((await as("anon", null, sql)).code).toBe("42501");
+    }
+    // logged-in non-admins still see nothing and cannot delete
     expect((await as("authenticated", CUSTOMER, "select text from public.suggestions")).rows).toHaveLength(0);
+    expect((await as("authenticated", CUSTOMER, "delete from public.suggestions")).affected).toBe(0);
   });
 
-  it("admins moderate (public / status / reply); the database checks the values", async () => {
-    const set = (sql: string) => as("authenticated", ADMIN, `update public.suggestions set ${sql} where text = 'private one'`);
-    expect((await set("is_public = true, status = 'done', admin_reply = 'اتعملت'")).affected).toBe(1);
-    expect((await set("status = 'maybe'")).error).toBeDefined();
-    expect((await set(`admin_reply = '${"x".repeat(301)}'`)).error).toBeDefined();
-    expect((await set("admin_reply = ''")).error).toBeDefined();
-    expect((await set("text = 'edited'")).error).toMatch(/only is_read/);
+  it("(…1500) admins can delete a suggestion", async () => {
+    const del = await as("authenticated", ADMIN, "delete from public.suggestions where text = 'private one'", [], true);
+    expect(del.affected).toBe(1);
+    expect((await db.query("select 1 from public.suggestions where text = 'private one'")).rows).toHaveLength(0);
   });
 
   it("creates the two DIY products hidden, in every colour, and hides them from the public", async () => {

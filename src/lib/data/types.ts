@@ -16,6 +16,6 @@ export interface CatalogSource {
   shippingRates(): Promise<ShippingRate[]>;
   /** published reviews, in display order */
   reviews(): Promise<Review[]>;
-  /** suggestions the admin made public, newest first */
-  publicSuggestions(): Promise<PublicSuggestion[]>;
+  /** suggestions, newest first; `before` (ISO date) loads the next page */
+  publicSuggestions(opts: { limit: number; before?: string }): Promise<PublicSuggestion[]>;
 }

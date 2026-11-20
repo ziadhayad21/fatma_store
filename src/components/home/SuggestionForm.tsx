@@ -5,9 +5,10 @@ import { submitSuggestion } from "@/app/actions/suggestions";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cleanSuggestion, SUGGESTION_MAX } from "@/lib/suggestions";
+import type { PublicSuggestion } from "@/lib/types";
 
-/** Same server action and rate limit as the order popup; new suggestions reach the admin as not public. */
-export function SuggestionForm() {
+/** Same server action and rate limit as the order popup. A sent suggestion is public right away. */
+export function SuggestionForm({ onSent }: { onSent?: (s: PublicSuggestion) => void }) {
   const fieldId = useId();
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
@@ -27,6 +28,7 @@ export function SuggestionForm() {
       if (res.ok) {
         setSent(true);
         setText("");
+        onSent?.(res.suggestion);
       } else setError(res.error);
     });
   }
@@ -35,7 +37,7 @@ export function SuggestionForm() {
     <div className="sugg-form-wrap">
       {sent ? (
         <p className="sugg-thanks" role="status">
-          <Icon name="check" size={18} /> شكرًا! هنراجع اقتراحك.
+          <Icon name="check" size={18} /> شكرًا! اقتراحك ظهر فوق.
         </p>
       ) : (
         <form className="sugg-form" onSubmit={send} noValidate>
