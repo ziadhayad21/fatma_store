@@ -5,7 +5,6 @@ import { backendConfigured, createServiceClient } from "@/lib/supabase/admin";
 /** Per-endpoint budgets (fixed windows). Generous for real shoppers, hostile to scripts. */
 export const LIMITS = {
   upload: { windowSec: 600, max: 30 },
-  newsletter: { windowSec: 3600, max: 5 },
   order: { windowSec: 3600, max: 10 },
   login: { windowSec: 600, max: 10 },
   suggestion: { windowSec: 3600, max: 5 },

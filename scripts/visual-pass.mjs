@@ -72,7 +72,6 @@ const admin = [
   { name: "admin-categories", path: "/admin/categories" },
   { name: "admin-category-edit", path: `/admin/categories/${towelsCat}` },
   { name: "admin-shipping", path: "/admin/shipping" },
-  { name: "admin-subscribers", path: "/admin/subscribers" },
 ];
 
 let failed = 0;

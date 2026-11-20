@@ -1,9 +1,9 @@
 // Live check of the rate limits against the real Supabase project + a running production server.
 //   node --env-file=.env.local scripts/ratelimit-live.mjs [base]
 // - SQL function: counts, blocks after max, anon/authenticated cannot call it or read the table
-// - newsletter and admin login: hit the real limit by submitting the real forms
+// - admin login: hits the real limit by submitting the real form
 // - upload: pre-fills the counter to max-1 through the same function, then does two real uploads
-// Removes its subscribers, upload objects and counters afterwards.
+// Removes its upload objects and counters afterwards.
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
 
@@ -35,37 +35,12 @@ await sb.from("rate_limits").delete().eq("key", key);
 // the key the app uses locally (no x-forwarded-for header)
 const ids = ["unknown", "::1", "127.0.0.1"];
 const clear = async () => {
-  for (const b of ["upload", "newsletter", "order", "login"]) for (const id of ids) await sb.from("rate_limits").delete().eq("key", `${b}:${id}`);
+  for (const b of ["upload", "order", "login"]) for (const id of ids) await sb.from("rate_limits").delete().eq("key", `${b}:${id}`);
 };
 await clear();
 const browser = await chromium.launch();
-const emails = [];
 
 try {
-  // ---- 2. newsletter: 5 per hour
-  {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
-    await page.goto(base + "/", { waitUntil: "load" });
-    const form = page.locator("footer form >> visible=true").first();
-    const msgs = [];
-    for (let i = 1; i <= 6; i++) {
-      const email = `rl-${tag}-${i}@example.com`;
-      emails.push(email);
-      await form.locator('input[name="email"]').fill(email);
-      await form.locator('button[type="submit"]').click();
-      await page.waitForFunction(() => document.querySelector("footer form [role=status]"), null, { timeout: 15000 });
-      await page.waitForFunction(() => !document.querySelector("footer form button[type=submit]").disabled, null, { timeout: 15000 });
-      msgs.push(await form.locator("[role=status]").first().textContent());
-      if (i < 6) await page.reload({ waitUntil: "load" });
-    }
-    check("newsletter: first 5 accepted", msgs.slice(0, 5).every((m) => !m.includes(RATE)), msgs.join(" | "));
-    check("newsletter: 6th blocked with Arabic message", msgs[5].includes(RATE), msgs[5]);
-    const { data } = await sb.from("newsletter_subscribers").select("email").in("email", emails);
-    check("newsletter: blocked attempt not stored (5 rows)", data.length === 5, String(data.length));
-    await ctx.close();
-  }
-
   // ---- 3. admin login: 10 per 10 minutes (wrong password each time)
   {
     const ctx = await browser.newContext();
@@ -107,17 +82,19 @@ try {
 } finally {
   await browser.close();
   await clear();
-  await sb.from("newsletter_subscribers").delete().in("email", emails);
   // remove the uploads this test created
   const { data: months } = await sb.storage.from("designs").list("uploads", { limit: 100 });
   for (const m of months ?? []) {
     const { data: files } = await sb.storage.from("designs").list(`uploads/${m.name}`, { limit: 1000 });
-    const used = (await sb.from("order_items").select("design_path").not("design_path", "is", null)).data?.map((r) => r.design_path) ?? [];
-    const doomed = (files ?? []).map((f) => `uploads/${m.name}/${f.name}`).filter((p) => !used.includes(p));
+    // keep every design an order uses (its own design_path or inside couples pieces); any lookup error keeps all
+    const paths = (files ?? []).map((f) => `uploads/${m.name}/${f.name}`);
+    const { data: usedRows, error: usedErr } = paths.length ? await sb.rpc("design_paths_in_use", { p_paths: paths }) : { data: [], error: null };
+    const used = usedErr ? paths : (usedRows ?? []).map((r) => (typeof r === "string" ? r : Object.values(r)[0]));
+    const doomed = paths.filter((p) => !used.includes(p));
     if (doomed.length) await sb.storage.from("designs").remove(doomed);
   }
 }
 const left = (await sb.from("rate_limits").select("key")).data ?? [];
-check("counters cleaned up", !left.some((r) => /^(upload|newsletter|order|login):/.test(r.key)), JSON.stringify(left));
+check("counters cleaned up", !left.some((r) => /^(upload|order|login):/.test(r.key)), JSON.stringify(left));
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

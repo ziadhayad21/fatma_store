@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { NewsletterForm } from "./NewsletterForm";
 import type { NavItem } from "./nav";
 
 export function Footer({ nav }: { nav: NavItem[] }) {
@@ -29,7 +28,6 @@ export function Footer({ nav }: { nav: NavItem[] }) {
             <a className="fl" href="#">أسئلة متكررة</a>
             <a className="fl" href="#">تواصل معانا</a>
           </nav>
-          <NewsletterForm />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 64, paddingTop: 24, borderTop: "1px solid #dcd8d1", fontSize: 13, color: "#555" }}>
           <span>© 2026 فاطمة. جميع الحقوق محفوظة.</span>

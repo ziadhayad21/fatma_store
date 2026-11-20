@@ -139,13 +139,6 @@ ok("checkout: bad mobile prefix rejected", ((await page.locator("#" + (await pag
 const hp = await page.locator(".hp input").boundingBox();
 ok("checkout: honeypot field is off-screen and aria-hidden", !!hp && Math.abs(hp.x) > 5000 && (await page.locator(".hp").getAttribute("aria-hidden")) === "true");
 
-// newsletter (no backend in seed mode)
-await page.goto(base + "/", { waitUntil: "load" });
-await page.fill("#nl-mail", "not-an-email");
-await page.getByRole("button", { name: "اشترك" }).click();
-await page.waitForSelector("footer [role=status]");
-ok("newsletter: invalid email message", ((await page.locator("footer [role=status]").textContent()) ?? "").includes("بريد"));
-
 ok("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);

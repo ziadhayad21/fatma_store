@@ -90,7 +90,7 @@ try {
   // ---------------------------------------------------------------- access control
   await page.goto(base + "/admin/orders", { waitUntil: "load" });
   check("anonymous /admin/orders redirects to the login page", page.url().includes("/admin/login"), page.url());
-  const anonExport = await fetch(base + "/admin/subscribers/export", { redirect: "manual" });
+  const anonExport = await fetch(base + "/admin/suggestions/export", { redirect: "manual" });
   check("anonymous CSV export is refused (redirect/401)", anonExport.status === 401 || anonExport.status === 307 || anonExport.status === 308, String(anonExport.status));
   const anonHdr = await fetch(base + "/admin/login");
   check("admin responses are noindex + no-store", /noindex/.test(anonHdr.headers.get("x-robots-tag") ?? "") && /no-store/.test(anonHdr.headers.get("cache-control") ?? ""));
@@ -308,14 +308,7 @@ try {
   await page.locator("text=/اتحفظ/ >> visible=true").first().waitFor();
   check("hiding a category removes it from nav immediately", !(await html("/")).includes(`/collections/cat-${tag}`));
 
-  // ---------------------------------------------------------------- subscribers + logout
-  await sb.from("newsletter_subscribers").delete().eq("email", `e2e-${tag}@example.com`);
-  await sb.from("newsletter_subscribers").insert({ email: `e2e-${tag}@example.com` });
-  await page.goto(base + "/admin/subscribers", { waitUntil: "load" });
-  check("subscribers page lists emails", (await page.getByText(`e2e-${tag}@example.com`).count()) >= 1);
-  const csv = await page.evaluate(async () => { const r = await fetch("/admin/subscribers/export"); const buf = new Uint8Array(await r.arrayBuffer()); return { s: r.status, bom: buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf, t: new TextDecoder().decode(buf), d: r.headers.get("content-disposition") }; });
-  check("CSV export works for the admin (BOM, header, attachment)", csv.s === 200 && csv.bom && csv.t.startsWith("email,subscribed_at") && csv.t.includes(`e2e-${tag}@example.com`) && /attachment/.test(csv.d ?? ""), JSON.stringify({ s: csv.s, d: csv.d, head: JSON.stringify(csv.t.slice(0, 60)) }));
-  await sb.from("newsletter_subscribers").delete().eq("email", `e2e-${tag}@example.com`);
+  // ---------------------------------------------------------------- logout
 
   await vis('button:has-text("تسجيل الخروج")').click();
   await page.waitForURL(/\/admin\/login/);
