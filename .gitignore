@@ -57,3 +57,6 @@ next-env.d.ts
 /supabase/.branches/
 /fatma-design-v2/
 /fatma-design-v2.zip
+
+# local import files (images and manifest), never committed
+/aprons-import/
