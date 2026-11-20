@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { MAX_QTY } from "@/lib/limits";
+import type { LinePiece } from "@/lib/couples";
 import type { FontId, OrderMode } from "@/lib/types";
 
 export type CartLine = {
@@ -13,15 +14,18 @@ export type CartLine = {
   designName: string | null; // original file name, display only
   color?: import("@/lib/product-rules").ProductColor | null;
   notes?: string | null;
+  /** couples products: one entry per piece (colour + name / design); `font` is shared */
+  pieces?: LinePiece[] | null;
   qty: number;
 };
 
 export type NewLine = Omit<CartLine, "key" | "qty"> & { qty?: number };
 
-export function lineKey(l: Pick<CartLine, "productId" | "mode" | "text" | "font" | "designPath" | "color"> & { notes?: string | null }) {
+export function lineKey(l: Pick<CartLine, "productId" | "mode" | "text" | "font" | "designPath" | "color"> & { notes?: string | null; pieces?: LinePiece[] | null }) {
   const parts = [l.productId, l.mode, l.text ?? "", l.font ?? "", l.designPath ?? ""];
   if (l.color) parts.push(l.color);
   if (l.notes) parts.push(l.notes);
+  if (l.pieces?.length) parts.push(l.pieces.map((p) => [p.color ?? "", p.text ?? "", p.designPath ?? ""].join("~")).join("+"));
   return parts.join("|");
 }
 

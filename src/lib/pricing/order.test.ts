@@ -133,3 +133,89 @@ describe("DIY (اصنعها بنفسك) products", () => {
     expect(r.lines.map((l) => [l.mode, l.color, l.unitPrice])).toEqual([["name", "black", 100], ["design", "pink", 100]]);
   });
 });
+
+describe("couples (كابلز) products", () => {
+  // aprons sell per colour; the colour prices differ on purpose: a couples product must ignore them
+  const couples: Product = {
+    ...apron,
+    slug: "couples-apron",
+    name_ar: "مريلة كابلز",
+    base_price: 650,
+    pieces_count: 2,
+    piece_labels: ["المريلة الأولى", "المريلة التانية"],
+    colors: apron.colors.map((c, i) => ({ ...c, price: [100, 140, 999][i] ?? 100 })),
+  };
+  const catalog = new Map<string, Product>([["couples-apron", couples]]);
+  const piece = (o: Partial<{ color: string | null; text: string | null; designPath: string | null; designName: string | null }> = {}) => ({
+    color: "black", text: null, designPath: null, designName: null, ...o,
+  });
+  const cl = (o: Partial<OrderLineInput> = {}): OrderLineInput =>
+    line({ productId: "couples-apron", color: "black", pieces: [piece(), piece()], ...o });
+  const priceC = (lines: OrderLineInput[], c = catalog) => price(lines, [], "القاهرة", c);
+  const fails = async (l: OrderLineInput, c = catalog) => {
+    await expect(priceC([l], c)).rejects.toBeInstanceOf(PricingError);
+  };
+
+  it("has ONE fixed price for the pair, whatever the colours", async () => {
+    const r = await priceC([
+      cl(),
+      cl({ pieces: [piece({ color: "black" }), piece({ color: "pink" })] }),
+      cl({ pieces: [piece({ color: "white" }), piece({ color: "pink" })], qty: 2 }),
+    ]);
+    expect(r.lines.map((l) => l.unitPrice)).toEqual([650, 650, 650]);
+    expect(r.lines.map((l) => l.lineTotal)).toEqual([650, 650, 1300]);
+    expect(r.subtotal).toBe(2600);
+    expect(fromPrice(couples)).toMatchObject({ price: 650, from: false });
+    expect(productPrice(couples, { color: "pink" }).price).toBe(650);
+  });
+
+  it("applies the product discount to the fixed price", async () => {
+    const discounted = new Map([["couples-apron", { ...couples, discount_percent: 10 }]]);
+    const r = await priceC([cl({ pieces: [piece(), piece({ color: "pink" })] })], discounted);
+    expect(r.lines[0]).toMatchObject({ unitPrice: 585, originalUnitPrice: 650, discountPercent: 10 });
+  });
+
+  it("snapshots every piece (label, colour name) and keeps piece 1 as the line colour", async () => {
+    const r = await priceC([cl({ mode: "name", font: "kufi", pieces: [piece({ text: " Beso  kitchen " }), piece({ color: "pink", text: "فاطمة" })] })]);
+    const l = r.lines[0];
+    expect(l.color).toBe("black");
+    expect(l.font).toBe("kufi");
+    expect(l.text).toBeNull();
+    expect(l.pieces).toEqual([
+      { label: "المريلة الأولى", color: "black", colorName: "أسود", text: "Beso kitchen", designPath: null, designName: null },
+      { label: "المريلة التانية", color: "pink", colorName: "وردي", text: "فاطمة", designPath: null, designName: null },
+    ]);
+  });
+
+  it("design mode keeps one design per piece", async () => {
+    const r = await priceC([cl({ mode: "design", pieces: [piece({ designPath: "uploads/a.png", designName: "a.png" }), piece({ designPath: "uploads/b.png", designName: "b.png" })] })]);
+    expect(r.lines[0].pieces!.map((p) => p.designPath)).toEqual(["uploads/a.png", "uploads/b.png"]);
+    expect(r.lines[0].font).toBeNull();
+  });
+
+  it("standard mode drops names and designs", async () => {
+    const r = await priceC([cl({ pieces: [piece({ text: "x", designPath: "uploads/a.png" }), piece()] })]);
+    expect(r.lines[0].pieces!.map((p) => [p.text, p.designPath])).toEqual([[null, null], [null, null]]);
+  });
+
+  it("rejects incomplete or invalid pairs", async () => {
+    await fails(cl({ pieces: null })); // no pieces
+    await fails(cl({ pieces: [piece()] })); // one piece only
+    await fails(cl({ pieces: [piece(), piece(), piece()] })); // too many
+    await fails(cl({ pieces: [piece(), piece({ color: "green" })] })); // colour not sold
+    await fails(cl({ pieces: [piece(), piece({ color: null })] })); // missing colour
+    await fails(cl({ mode: "name", font: "kufi", pieces: [piece({ text: "Beso" }), piece({ text: "" })] })); // second name missing
+    await fails(cl({ mode: "name", font: "kufi", pieces: [piece({ text: "Beso" }), piece({ text: "x".repeat(19) })] })); // over 18
+    await fails(cl({ mode: "name", font: "kufi", pieces: [piece({ text: "Beso" }), piece({ text: "<b>" })] })); // bad characters
+    await fails(cl({ mode: "name", font: null, pieces: [piece({ text: "Beso" }), piece({ text: "Sara" })] })); // shared font required
+    await fails(cl({ mode: "design", pieces: [piece({ designPath: "uploads/a.png" }), piece()] })); // second design missing
+    const unavailable = new Map([["couples-apron", { ...couples, colors: couples.colors.filter((c) => c.id !== "pink") }]]);
+    await fails(cl({ pieces: [piece(), piece({ color: "pink" })] }), unavailable);
+  });
+
+  it("ignores pieces sent for a normal product", async () => {
+    const r = await price([line({ pieces: [piece(), piece()] })], []);
+    expect(r.lines[0].pieces).toBeNull();
+    expect(r.lines[0].unitPrice).toBe(100);
+  });
+});

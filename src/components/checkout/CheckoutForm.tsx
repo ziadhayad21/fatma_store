@@ -17,8 +17,9 @@ import type { ShippingRate } from "@/lib/data/types";
 import { formatPrice } from "@/lib/format";
 import { governorates } from "@/lib/governorates";
 import { defaultPaymentMethod, paymentMethods } from "@/lib/payments";
-import { variantText } from "@/lib/pricing";
-import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
+import { LineDetails, lineThumbPath } from "@/components/cart/LineDetails";
+import { lineDesignPaths } from "@/lib/couples";
+import { productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 
@@ -30,7 +31,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const clear = useCart((s) => s.clear);
   const hydrated = useCartHydrated();
   const { products, loaded } = useCartProducts();
-  const designUrls = useDesignUrls(storedLines.map((l) => l.designPath));
+  const designUrls = useDesignUrls(storedLines.flatMap(lineDesignPaths));
 
   const [form, setForm] = useState<CustomerInput>(EMPTY);
   const [depositMethod, setDepositMethod] = useState("instapay");
@@ -103,6 +104,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
           font: l.font,
           color: l.color,
           designPath: l.designPath,
+          pieces: l.pieces ?? null,
           qty: l.qty,
         })),
       });
@@ -282,7 +284,8 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {lines.map((l) => {
                 const p = products.get(l.productId)!;
-                const thumb = l.designPath ? designUrls[l.designPath] : undefined;
+                const thumbPath = lineThumbPath(l);
+              const thumb = thumbPath ? designUrls[thumbPath] : undefined;
                 return (
                   <div className="sum-line" key={l.key}>
                     {thumb ? (
@@ -293,7 +296,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500 }}>{p.name_ar} <span className="muted">× {l.qty}</span></div>
-                      <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</div>
+                      <LineDetails line={l} product={p} />
                     </div>
                     <PriceDisplay {...productPrice(p, { color: l.color, qty: l.qty })} />
                   </div>

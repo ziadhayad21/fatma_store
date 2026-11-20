@@ -2823,3 +2823,92 @@
   stroke-width: 4;
   stroke-dasharray: 10 8;
 }
+
+/* cart / drawer / checkout: the lines under a product (couples: one per piece) */
+.line-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.line-details > [data-piece] {
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--line-strong);
+}
+
+/* ---------------------------------------------------------------- product page: couples (كابلز) */
+.cpl-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #f6d6dc;
+  color: #8e1b2c;
+  font-size: 12px;
+  font-weight: 500;
+}
+.cpl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cpl-same {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cpl-same input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+.cpl-pieces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.cpl-piece {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  background: var(--color-panel);
+  animation: rise 0.5s var(--ease) both;
+}
+.cpl-piece .panel {
+  padding: 0;
+  background: transparent;
+  animation: none;
+}
+.cpl-piece .drop {
+  padding-inline: 12px;
+  text-align: center;
+}
+.cpl-piece-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.cpl-piece-title .muted {
+  font-weight: 400;
+}
+.cpl-notes {
+  width: 100%;
+  min-height: 76px;
+  height: auto;
+  padding: 10px 14px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .cpl-pieces {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

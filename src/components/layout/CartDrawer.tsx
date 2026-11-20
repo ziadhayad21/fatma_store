@@ -11,8 +11,9 @@ import { Drawer } from "@/components/ui/Drawer";
 import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { formatPrice } from "@/lib/format";
-import { variantText } from "@/lib/pricing";
-import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
+import { LineDetails, lineThumbPath } from "@/components/cart/LineDetails";
+import { lineDesignPaths } from "@/lib/couples";
+import { productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useUI } from "@/store/ui";
 
@@ -22,7 +23,7 @@ export function CartDrawer() {
   const storedLines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
   const { products } = useCartProducts(open);
-  const designUrls = useDesignUrls(storedLines.map((l) => l.designPath));
+  const designUrls = useDesignUrls(storedLines.flatMap(lineDesignPaths));
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
@@ -55,7 +56,8 @@ export function CartDrawer() {
           <ul className="dr-list" style={{ listStyle: "none", margin: 0 }}>
             {lines.map((l) => {
               const p = products.get(l.productId)!;
-              const thumb = l.designPath ? designUrls[l.designPath] : undefined;
+              const thumbPath = lineThumbPath(l);
+              const thumb = thumbPath ? designUrls[thumbPath] : undefined;
               return (
                 <li className="dr-row" key={l.key}>
                   {thumb ? (
@@ -71,7 +73,7 @@ export function CartDrawer() {
                       </Link>
                       <PriceDisplay {...productPrice(p, { color: l.color, qty: l.qty })} />
                     </div>
-                    <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</span>
+                    <LineDetails line={l} product={p} />
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
                       <QtyStepper value={l.qty} onChange={(n) => setQty(l.key, n)} />
                       <button type="button" className="rm" onClick={() => removeCartLine(l.key)}>

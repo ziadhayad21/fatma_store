@@ -152,8 +152,8 @@ describe("seed + constraints", () => {
 
   it("seeds categories, products and all 27 governorates (fees unset)", async () => {
     const c = await as("postgres", null, "select count(*)::int n from public.categories");
-    // the seed migration's products (migration …1400 adds two hidden DIY products)
-    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy");
+    // the seed migration's products (migrations …1400 / …1600 add hidden DIY and couples products)
+    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy and pieces_count = 1");
     const g = await as<{ governorate: string; fee: string | null }>("postgres", null, "select * from public.shipping_rates");
     expect(c.rows[0]).toMatchObject({ n: 3 });
     expect(p.rows[0]).toMatchObject({ n: 30 });
@@ -165,8 +165,8 @@ describe("seed + constraints", () => {
   it("is idempotent when the seed runs twice", async () => {
     const sql = readFileSync(path.resolve("supabase/migrations/20260101000300_seed.sql"), "utf8");
     await db.exec(sql);
-    // the seed migration's products (migration …1400 adds two hidden DIY products)
-    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy");
+    // the seed migration's products (migrations …1400 / …1600 add hidden DIY and couples products)
+    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy and pieces_count = 1");
     expect(p.rows[0]).toMatchObject({ n: 30 });
   });
 
@@ -308,7 +308,7 @@ describe("admins", () => {
 
   it("can see inactive products too", async () => {
     await setup("update public.products set is_active = false where slug = 'chef-apron'");
-    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(32); // + the 2 hidden DIY products
+    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(34); // + the 2 hidden DIY and 2 hidden couples products
     expect((await as("authenticated", CUSTOMER, "select * from public.products")).rows).toHaveLength(29);
     await setup("update public.products set is_active = true where slug = 'chef-apron'");
   });
@@ -476,7 +476,7 @@ describe("colours + one price per colour (migration …1200)", () => {
     const rows = await as<{ slug: string; n: number; same: boolean }>("postgres", null, `
       select c.slug, count(pc.*)::int n, bool_and(pc.price = p.base_price) same
       from public.products p join public.categories c on c.id = p.category_id
-      left join public.product_colors pc on pc.product_id = p.id where not p.is_diy group by c.slug order by c.slug`);
+      left join public.product_colors pc on pc.product_id = p.id where not p.is_diy and p.pieces_count = 1 group by c.slug order by c.slug`);
     expect(rows.rows).toEqual([
       { slug: "aprons", n: 30, same: true },
       { slug: "bags", n: 0, same: null },
@@ -696,5 +696,75 @@ describe("public suggestions + DIY products (migration …1400)", () => {
     expect((await as("anon", null, "select slug from public.products where is_diy")).rows).toHaveLength(0);
     // existing products are not DIY
     expect((await db.query("select 1 from public.products where not is_diy")).rows.length).toBeGreaterThan(0);
+  });
+});
+
+describe("couples products (migration …1600)", () => {
+  // every order needs its own transfer proof (orders.payment_proof_path is unique)
+  const proofs = [1, 2, 3, 4, 5, 6].map((n) => `proofs/2026-11/7777777${n}-7777-4777-8777-777777777777.png`);
+  let next = 0;
+  const couplesId = async (slug = "couples-apron-chef-mouse") =>
+    (await db.query<{ id: string }>("select id from public.products where slug = $1", [slug])).rows[0].id;
+  const pieces = (mode: "name" | "design" | "standard") => [
+    { label: "المريلة الأولى", color: "black", color_name: "أسود", text: mode === "name" ? "Beso kitchen" : null, font: mode === "name" ? "kufi" : null, design_path: mode === "design" ? "uploads/2026-11/aaaa.png" : null, design_name: null },
+    { label: "المريلة التانية", color: "pink", color_name: "وردي", text: mode === "name" ? "فاطمة" : null, font: mode === "name" ? "kufi" : null, design_path: mode === "design" ? "uploads/2026-11/bbbb.png" : null, design_name: null },
+  ];
+  const place = (items: unknown[], persist = false) =>
+    as<{ create_order: { id: string } }>("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order({ payment_proof_path: proofs[next++], subtotal: 650, total: 690 })), JSON.stringify(items)], persist);
+
+  it("creates the two couples aprons hidden, 650 for the pair, in all three colours", async () => {
+    const { rows } = await db.query<{ slug: string; name_ar: string; is_active: boolean; base_price: string; pieces_count: number; piece_labels: string[]; cat: string; colors: string[] }>(
+      `select p.slug, p.name_ar, p.is_active, p.base_price, p.pieces_count, p.piece_labels, c.slug as cat,
+              array(select pc.color_id from public.product_colors pc where pc.product_id = p.id and pc.is_available order by pc.color_id) as colors
+       from public.products p join public.categories c on c.id = p.category_id where p.pieces_count = 2 order by p.slug`,
+    );
+    expect(rows.map((r) => ({ ...r, base_price: Number(r.base_price) }))).toEqual([
+      { slug: "couples-apron-chef-mouse", name_ar: "مريلة كابلز الفار الطباخ", is_active: false, base_price: 650, pieces_count: 2, piece_labels: ["المريلة الأولى", "المريلة التانية"], cat: "aprons", colors: ["black", "pink", "white"] },
+      { slug: "couples-apron-teddy", name_ar: "مريلة كابلز دبدوب", is_active: false, base_price: 650, pieces_count: 2, piece_labels: ["المريلة الأولى", "المريلة التانية"], cat: "aprons", colors: ["black", "pink", "white"] },
+    ]);
+    expect((await as("anon", null, "select slug from public.products where pieces_count = 2")).rows).toHaveLength(0);
+    expect((await db.query("select 1 from public.products where pieces_count not between 1 and 2")).rows).toHaveLength(0);
+  });
+
+  it("create_order stores the pieces snapshot (piece 1 in the item's own columns)", async () => {
+    for (const p of proofs) await setup("insert into storage.objects (bucket_id, name) values ('payment-proofs', $1)", [p]);
+    const id = await couplesId();
+    const ok = await place([item({ product_id: id, name_snapshot: "مريلة كابلز الفار الطباخ", mode: "name", text: "Beso kitchen", font: null, color: "black", unit_price: 650, qty: 1, pieces: pieces("name") })], true);
+    expect(ok.error).toBeUndefined();
+    const saved = await db.query<{ text: string; font: string | null; color: string; pieces: { text: string; color: string; font: string }[] }>(
+      "select text, font, color, pieces from public.order_items where order_id = $1", [ok.rows[0].create_order.id]);
+    expect(saved.rows[0]).toMatchObject({ text: "Beso kitchen", font: null, color: "black" });
+    expect(saved.rows[0].pieces.map((p) => [p.text, p.color, p.font])).toEqual([["Beso kitchen", "black", "kufi"], ["فاطمة", "pink", "kufi"]]);
+
+    // normal orders are unchanged: no pieces sent -> null
+    const plain = await place([item({ unit_price: 125, qty: 1 })], true);
+    expect(plain.error).toBeUndefined();
+    const p2 = await db.query<{ pieces: unknown }>("select pieces from public.order_items where order_id = $1", [plain.rows[0].create_order.id]);
+    expect(p2.rows[0].pieces).toBeNull();
+  });
+
+  it("create_order rejects a couples item without its pieces, and pieces on a normal product", async () => {
+    const id = await couplesId();
+    for (const items of [
+      [item({ product_id: id, mode: "standard", text: null, color: "black" })], // couples without pieces
+      [item({ product_id: id, mode: "standard", text: null, color: "black", pieces: pieces("standard").slice(0, 1) })], // only one piece
+      [item({ pieces: pieces("standard") })], // pieces on a normal product
+    ]) {
+      expect((await place(items)).error).toBeDefined();
+    }
+    // the table itself refuses a malformed snapshot
+    const anyItem = (await db.query<{ id: string }>("select id from public.order_items limit 1")).rows[0].id;
+    expect((await as("postgres", null, "update public.order_items set pieces = '{}'::jsonb where id = $1", [anyItem])).error).toBeDefined();
+    expect((await as("postgres", null, "update public.order_items set pieces = '[1]'::jsonb where id = $1", [anyItem])).error).toBeDefined();
+  });
+
+  it("design_paths_in_use sees designs inside pieces; only the server may call it", async () => {
+    const id = await couplesId("couples-apron-teddy");
+    const ok = await place([item({ product_id: id, name_snapshot: "مريلة كابلز دبدوب", mode: "design", text: null, font: null, design_path: "uploads/2026-11/aaaa.png", color: "black", unit_price: 650, qty: 1, pieces: pieces("design") })], true);
+    expect(ok.error).toBeUndefined();
+    const used = await as<{ p: string }>("service_role", null, "select public.design_paths_in_use($1) as p", [["uploads/2026-11/aaaa.png", "uploads/2026-11/bbbb.png", "uploads/2026-11/unused.png"]]);
+    expect(used.rows.map((r) => r.p).sort()).toEqual(["uploads/2026-11/aaaa.png", "uploads/2026-11/bbbb.png"]);
+    expect((await as("anon", null, "select public.design_paths_in_use($1)", [["x"]])).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "select public.design_paths_in_use($1)", [["x"]])).code).toBe("42501");
   });
 });

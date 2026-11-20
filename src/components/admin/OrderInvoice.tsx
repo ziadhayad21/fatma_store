@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { formatDay } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
-import { itemOptionLine } from "@/lib/admin/order-item";
+import { itemOptionLine, itemPieceLines } from "@/lib/admin/order-item";
+import type { StoredPiece } from "@/lib/couples";
 import { roundMoney } from "@/lib/pricing/discount";
 import { getItemCustomizationNote, type DepositStatus, type ProductColor } from "@/lib/product-rules";
 import type { FontId, OrderMode, ProductImage } from "@/lib/types";
@@ -19,6 +20,8 @@ export type InvoiceItem = {
   unit_price: number | string;
   original_unit_price?: number | string | null;
   discount_percent?: number | string | null;
+  /** couples products: one snapshot per piece */
+  pieces?: StoredPiece[] | null;
 };
 
 type InvoiceOrder = {
@@ -103,6 +106,9 @@ export function OrderInvoice({ order, items }: { order: InvoiceOrder; items: Inv
                 <td>
                   <strong dir="auto">{item.name_snapshot}</strong>
                   <div className="invoice-option" dir="auto">{itemDetails(item, note)}</div>
+                  {itemPieceLines(item).map((line, k) => (
+                    <div className="invoice-option invoice-piece" dir="auto" key={k}>{line}</div>
+                  ))}
                 </td>
                 <td>{item.qty}</td>
                 <td>{formatPrice(unit)}</td>

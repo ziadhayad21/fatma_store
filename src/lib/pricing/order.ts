@@ -1,4 +1,5 @@
 import "server-only";
+import { isCouples, pieceLabels, type LinePiece } from "@/lib/couples";
 import { productRules, isProductColor, type ProductColor } from "@/lib/product-rules";
 import { MAX_QTY } from "@/lib/limits";
 import { isFontId, normalizeName, validateName } from "@/lib/personalization";
@@ -21,10 +22,15 @@ export type OrderLineInput = {
   font: FontId | null;
   designPath: string | null;
   color?: ProductColor | null;
+  /** couples products: one entry per piece (colour + name / design). Null for every other product. */
+  pieces?: LinePiece[] | null;
   qty: number;
 };
 
-export type PricedLine = OrderLineInput & {
+export type PricedPiece = LinePiece & { label: string; colorName: string | null };
+
+export type PricedLine = Omit<OrderLineInput, "pieces"> & {
+  pieces: PricedPiece[] | null;
   productName: string;
   /** Arabic name of the chosen colour (snapshotted on the order item) */
   colorName: string | null;
@@ -65,6 +71,41 @@ export class PricingError extends Error {
   }
 }
 
+/**
+ * A couples line: every piece needs an available colour, and (by option) its own name or design.
+ * Both names share the line's font. The line's own color = piece 1's (the order item keeps piece 1 in its
+ * columns; the pieces snapshot holds all of them).
+ */
+function cleanCouplesLine(line: OrderLineInput, product: Product, rules: ReturnType<typeof productRules>): OrderLineInput {
+  const n = product.pieces_count ?? 2;
+  const pieces = line.pieces;
+  if (!Array.isArray(pieces) || pieces.length !== n) throw new PricingError("اختار تفاصيل كل قطعة", "bad_line");
+  const labels = pieceLabels(product);
+  const clean: LinePiece[] = pieces.map((p, i) => {
+    const color = rules.colors ? p?.color : null;
+    if (rules.colors && !(isProductColor(color) && findColor(product, color))) throw new PricingError(`اختار لون ${labels[i]}`, "bad_line");
+    if (line.mode === "name") {
+      const v = validateName(p?.text ?? "");
+      if (!v.ok) throw new PricingError(`${labels[i]}: ${v.error}`, "bad_line");
+      return { color: color ?? null, text: normalizeName(p.text ?? ""), designPath: null, designName: null };
+    }
+    if (line.mode === "design") {
+      if (!p?.designPath) throw new PricingError(`ارفع تصميم ${labels[i]}`, "bad_line");
+      return { color: color ?? null, text: null, designPath: p.designPath, designName: p.designName ?? null };
+    }
+    return { color: color ?? null, text: null, designPath: null, designName: null };
+  });
+  if (line.mode === "name" && !isFontId(line.font)) throw new PricingError("اختار الخط", "bad_line");
+  return {
+    ...line,
+    color: clean[0].color,
+    text: null,
+    font: line.mode === "name" ? line.font : null,
+    designPath: null,
+    pieces: clean,
+  };
+}
+
 /** Checks one cart line against its product. Throws PricingError; returns the cleaned line. */
 export function cleanLine(line: OrderLineInput, product: Product | undefined): OrderLineInput {
   if (!product) throw new PricingError("منتج مش موجود", "unknown_product");
@@ -72,6 +113,13 @@ export function cleanLine(line: OrderLineInput, product: Product | undefined): O
     throw new PricingError("الكمية غير صحيحة", "bad_line");
   }
   const rules = productRules(product);
+  if (line.mode !== "standard" && line.mode !== "name" && line.mode !== "design") throw new PricingError("طريقة طلب غير معروفة", "bad_line");
+  if (isCouples(product)) {
+    if (!rules.customization && line.mode !== "standard") throw new PricingError("المنتج ده متاح بدون تخصيص فقط", "bad_line");
+    if (!rules.standard && line.mode === "standard") throw new PricingError("اكتبوا أساميكم أو ارفعوا تصميمكم للمنتج ده", "bad_line");
+    return cleanCouplesLine(line, product, rules);
+  }
+  line = { ...line, pieces: null };
   if (!rules.customization && line.mode !== "standard") throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
   if (!rules.standard && line.mode === "standard") throw new PricingError("اكتب اسمك أو ارفع تصميمك للمنتج ده", "bad_line");
   // the colour must be one the product is currently sold in (its price comes from that colour)
@@ -118,9 +166,12 @@ export async function priceOrder(input: {
   const lines: PricedLine[] = input.lines.map((raw) => {
     const product = input.products.get(raw.productId);
     const clean = cleanLine(raw, product);
+    // couples products: one fixed price for the set, whatever the colours (productPrice ignores them)
     const unit = productPrice(product!, { color: clean.color });
+    const labels = pieceLabels(product!);
     return {
       ...clean,
+      pieces: clean.pieces ? clean.pieces.map((p, i) => ({ ...p, label: labels[i], colorName: findColor(product!, p.color)?.name_ar ?? null })) : null,
       productName: product!.name_ar,
       colorName: findColor(product!, clean.color)?.name_ar ?? null,
       unitPrice: unit.price,

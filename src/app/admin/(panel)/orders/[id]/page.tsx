@@ -27,6 +27,7 @@ type Item = InvoiceItem & {
   product_id: string | null;
   design_path: string | null;
 };
+type Signed = { view?: string; download?: string };
 
 export default async function OrderDetail({ params }: PageProps<"/admin/orders/[id]">) {
   const { id } = await params;
@@ -51,19 +52,27 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
 
   // customer uploads live in the private bucket: signed URLs are created with the signed-in admin session
   // (the storage policy only lets admins do this)
-  const designs = new Map<string, { view?: string; download?: string }>();
+  const sign = async (path: string, filename: string): Promise<Signed> => {
+    const [view, dl] = await Promise.all([
+      supabase.storage.from("designs").createSignedUrl(path, 3600),
+      supabase.storage.from("designs").createSignedUrl(path, 3600, { download: filename }),
+    ]);
+    return { view: view.data?.signedUrl, download: dl.data?.signedUrl };
+  };
+  const ext = (path: string) => path.split(".").pop() ?? "png";
+  const designs = new Map<string, Signed>();
   await Promise.all(
     items
       .filter((i) => i.design_path)
-      .map(async (i, n) => {
-        const ext = i.design_path!.split(".").pop() ?? "png";
-        const filename = `order-${data.number}-design-${n + 1}.${ext}`;
-        const [view, dl] = await Promise.all([
-          supabase.storage.from("designs").createSignedUrl(i.design_path!, 3600),
-          supabase.storage.from("designs").createSignedUrl(i.design_path!, 3600, { download: filename }),
-        ]);
-        designs.set(i.id, { view: view.data?.signedUrl, download: dl.data?.signedUrl });
+      .map(async (i, n) => designs.set(i.id, await sign(i.design_path!, `order-${data.number}-design-${n + 1}.${ext(i.design_path!)}`))),
+  );
+  // couples items: one design per piece (key "<item id>:<piece index>")
+  await Promise.all(
+    items.flatMap((i, n) =>
+      (i.pieces ?? []).map(async (pc, k) => {
+        if (pc.design_path) designs.set(`${i.id}:${k}`, await sign(pc.design_path, `order-${data.number}-item-${n + 1}-piece-${k + 1}.${ext(pc.design_path)}`));
       }),
+    ),
   );
 
   const proof = data.payment_proof_path ? await supabase.storage.from(PROOF_BUCKET).createSignedUrl(data.payment_proof_path, 3600) : null;
@@ -139,11 +148,48 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                           </span>
                         </div>
 
-                        {it.mode === "name" && it.text && (
+                        {!!it.pieces?.length && (
+                          <div className="adm-od-pieces">
+                            {it.pieces.map((pc, k) => {
+                              const pd = designs.get(`${it.id}:${k}`);
+                              return (
+                                <div className="adm-od-piece" key={k}>
+                                  <strong className="adm-od-piece-label" dir="auto">{pc.label}</strong>
+                                  <span className="adm-od-piece-color">
+                                    {pc.color && <span className="adm-od-dot" data-c={pc.color} aria-hidden="true" />}
+                                    اللون: {pc.color_name ?? pc.color ?? "—"}
+                                  </span>
+                                  {it.mode === "name" && pc.text && (
+                                    <span className="adm-nameprint" style={{ fontFamily: fontCss(pc.font) }} dir="auto">{pc.text}</span>
+                                  )}
+                                  {it.mode === "design" && (
+                                    <>
+                                      {pd?.view && (
+                                        <a href={pd.view} target="_blank" rel="noreferrer" title="عرض بالحجم الكامل">
+                                          {/* eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable */}
+                                          <img className="adm-od-piece-design" src={pd.view} alt={`تصميم ${pc.label}`} />
+                                        </a>
+                                      )}
+                                      {pd?.download ? (
+                                        <a className="adm-btn sm" href={pd.download}>
+                                          <Icon name="upload" size={15} /> تحميل التصميم
+                                        </a>
+                                      ) : (
+                                        <span className="adm-err">ملف التصميم مش متاح.</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {!it.pieces?.length && it.mode === "name" && it.text && (
                           <span className="adm-nameprint" style={{ fontFamily: fontCss(it.font) }} dir="auto">{it.text}</span>
                         )}
 
-                        {it.mode === "design" && (
+                        {!it.pieces?.length && it.mode === "design" && (
                           <div className="adm-od-design">
                             {d?.download ? (
                               <a className="adm-btn sm" href={d.download}>

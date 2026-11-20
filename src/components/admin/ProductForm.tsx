@@ -6,6 +6,7 @@ import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { parseMoney } from "@/lib/admin/validate";
 import { productPrice, validDiscountPercent } from "@/lib/pricing/discount";
 import type { ProductImage } from "@/lib/types";
+import { DEFAULT_PIECE_LABELS, PIECE_LABEL_MAX } from "@/lib/couples";
 import { CatalogSlugField } from "./CatalogSlugField";
 import { ImagesField } from "./ImagesField";
 
@@ -25,6 +26,9 @@ export type ProductFormValues = {
   is_active: boolean;
   /** "اصنعها بنفسك": no "as is" option, shown first in its collection */
   is_diy: boolean;
+  /** "كابلز": 2 pieces, one fixed price (base_price); colours only switch on/off */
+  is_couples: boolean;
+  piece_labels: [string, string];
   images: ProductImage[];
   /** every active colour; used when the category sells by colour */
   colors: ProductColorValue[];
@@ -41,14 +45,17 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
   const [colors, setColors] = useState(v.colors);
   const [discountEnabled, setDiscountEnabled] = useState(v.discount_percent !== "");
   const [discount, setDiscount] = useState(v.discount_percent);
+  const [couples, setCouples] = useState(v.is_couples);
   const hasColors = categories.find((c) => c.id === categoryId)?.has_colors ?? false;
+  // couples products have one fixed price: colours only switch on/off
+  const perColorPrices = hasColors && !couples;
 
   const patchColor = (id: string, patch: Partial<ProductColorValue>) =>
     setColors((list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)));
 
   // discount preview: the single price, or the lowest available colour price
   const colorPrices = colors.filter((c) => c.available).map((c) => parseMoney(c.price)).filter((n): n is number => typeof n === "number");
-  const previewBase = hasColors ? (colorPrices.length ? Math.min(...colorPrices) : null) : parseMoney(regularPrice);
+  const previewBase = perColorPrices ? (colorPrices.length ? Math.min(...colorPrices) : null) : parseMoney(regularPrice);
   const parsedDiscount = parseMoney(discount, 100);
   const preview = typeof previewBase === "number" && typeof parsedDiscount === "number" && validDiscountPercent(parsedDiscount)
     ? productPrice({ base_price: previewBase, discount_percent: parsedDiscount })
@@ -76,7 +83,53 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
       </div>
       <CatalogSlugField name={name} savedSlug={v.slug} kind="product" />
 
-      {hasColors ? (
+      <div className="adm-f adm-couples">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="is_couples" checked={couples} onChange={(event) => setCouples(event.target.checked)} aria-describedby="couples-hint" />
+          منتج كابلز (قطعتين)
+        </label>
+        <span className="adm-hint" id="couples-hint">قطعتين في منتج واحد: العميل يختار لون واسم أو تصميم لكل قطعة، والسعر ثابت للقطعتين مهما كانت الألوان.</span>
+        {couples && (
+          <div className="adm-row">
+            {[0, 1].map((i) => (
+              <div className="adm-f" key={i}>
+                <label htmlFor={`piece_label_${i + 1}`}>اسم القطعة {i === 0 ? "الأولى" : "التانية"}</label>
+                <input id={`piece_label_${i + 1}`} name={`piece_label_${i + 1}`} type="text" defaultValue={v.piece_labels[i]} placeholder={DEFAULT_PIECE_LABELS[i]} maxLength={PIECE_LABEL_MAX} aria-invalid={!!e[`piece_label_${i + 1}`]} />
+                {err(`piece_label_${i + 1}`)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {couples && (
+        <div className="adm-row">
+          <div className="adm-f">
+            <label htmlFor="base_price">سعر الكابلز (ج.م)</label>
+            <input id="base_price" name="base_price" type="text" inputMode="decimal" value={regularPrice} onChange={(event) => setRegularPrice(event.target.value)} required dir="ltr" aria-invalid={!!e.base_price} />
+            <span className="adm-hint">سعر واحد للقطعتين، مهما كانت الألوان أو طريقة الطلب.</span>
+            {err("base_price")}
+          </div>
+        </div>
+      )}
+
+      {couples && hasColors ? (
+        <fieldset className="adm-f adm-colors" aria-describedby="couple-colors-hint">
+          <legend className="lbl">الألوان المتاحة</legend>
+          <span className="adm-hint" id="couple-colors-hint">فعّل الألوان اللي العميل يقدر يختارها لكل قطعة. لازم لون واحد على الأقل.</span>
+          {colors.map((c) => (
+            <div className="adm-color-row adm-color-row--toggle" key={c.id} data-off={!c.available || undefined}>
+              <label className="adm-check">
+                <input type="checkbox" role="switch" name={`color_available_${c.id}`} checked={c.available} onChange={(event) => patchColor(c.id, { available: event.target.checked })} />
+                <span className="adm-swatch" style={{ background: c.hex }} aria-hidden="true" />
+                <span>{c.name_ar}</span>
+                <span className="adm-hint">{c.available ? "متاح" : "غير متاح"}</span>
+              </label>
+            </div>
+          ))}
+          {err("colors")}
+        </fieldset>
+      ) : couples ? null : hasColors ? (
         <fieldset className="adm-f adm-colors" aria-describedby="colors-hint">
           <legend className="lbl">الألوان والسعر (ج.م)</legend>
           <span className="adm-hint" id="colors-hint">فعّل الألوان المتاحة واكتب سعر كل لون. لازم لون واحد على الأقل. السعر واحد مهما كانت طريقة الطلب.</span>
@@ -133,11 +186,11 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
             <div className="adm-f">
               <label htmlFor="discount_percent">نسبة الخصم (%)</label>
               <input id="discount_percent" name="discount_percent" type="text" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} required dir="ltr" aria-invalid={!!e.discount_percent} />
-              {hasColors && <span className="adm-hint">بتتطبق على سعر كل لون.</span>}
+              {perColorPrices && <span className="adm-hint">بتتطبق على سعر كل لون.</span>}
               {err("discount_percent")}
             </div>
             <div className="adm-f" aria-live="polite">
-              <span className="lbl">معاينة السعر{hasColors ? " (أقل لون)" : ""}</span>
+              <span className="lbl">معاينة السعر{perColorPrices ? " (أقل لون)" : ""}</span>
               {preview ? <PriceDisplay {...preview} /> : <span className="adm-hint">اكتب السعر ونسبة خصم صحيحة.</span>}
             </div>
           </div>

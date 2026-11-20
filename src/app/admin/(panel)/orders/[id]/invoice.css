@@ -140,6 +140,9 @@
     font-size: 8.5pt;
     color: #444;
   }
+  .invoice-piece {
+    padding-inline-start: 3mm;
+  }
 
   .invoice-totals {
     width: 80mm;

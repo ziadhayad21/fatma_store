@@ -75,7 +75,9 @@ export function ProductCard({
               className={`${listingButton} right-2 bottom-2 hover:bg-[#292524] hover:text-white lg:right-3 lg:bottom-3`}
               aria-label="أضف للسلة"
               onClick={() => {
-                add({ productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: quickAddColor });
+                // couples: both pieces "as is" in the first available colour
+                const pieces = rules.couples ? Array.from({ length: p.pieces_count ?? 2 }, () => ({ color: quickAddColor, text: null, designPath: null, designName: null })) : null;
+                add({ productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: quickAddColor, pieces });
                 openCart();
               }}
             >
@@ -83,7 +85,10 @@ export function ProductCard({
             </button>
           )}
         </div>
-        {rules.customization && <span className="mt-2.5 inline-block rounded-md bg-[#E8EFE5] px-2 py-0.5 text-[10px] font-medium text-[#4B5E45] lg:mt-3 lg:text-[11px]">+ قابل للطباعة</span>}
+        {(rules.couples || rules.customization) && <div className="mt-2.5 flex flex-wrap gap-1.5 lg:mt-3">
+          {rules.couples && <span className="inline-block rounded-md bg-[#F6D6DC] px-2 py-0.5 text-[10px] font-semibold text-[#8E1B2C] lg:text-[11px]">كابلز</span>}
+          {rules.customization && <span className="inline-block rounded-md bg-[#E8EFE5] px-2 py-0.5 text-[10px] font-medium text-[#4B5E45] lg:text-[11px]">+ قابل للطباعة</span>}
+        </div>}
         <h2 className="listing-product-title line-clamp-1">
           <Link href={href}>{p.name_ar}</Link>
         </h2>

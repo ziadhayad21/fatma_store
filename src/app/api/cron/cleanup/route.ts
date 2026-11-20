@@ -36,9 +36,11 @@ export async function GET(req: Request) {
   let removed = 0;
   for (let i = 0; i < old.length; i += 100) {
     const batch = old.slice(i, i + 100);
-    const { data: used, error } = await sb.from("order_items").select("design_path").in("design_path", batch);
+    // order_items.design_path AND the designs inside couples pieces
+    const { data: used, error } = await sb.rpc("design_paths_in_use", { p_paths: batch });
     if (error) return NextResponse.json({ ok: false, error: "lookup failed" }, { status: 500 });
-    const keep = new Set((used ?? []).map((r) => r.design_path as string));
+    // PostgREST returns a setof-text function as plain strings (or {fn: value} rows on older versions)
+    const keep = new Set(((used as unknown[] | null) ?? []).map((r) => (typeof r === "string" ? r : String(Object.values(r as object)[0]))));
     const doomed = batch.filter((p) => !keep.has(p));
     if (doomed.length) {
       const { error: rmErr } = await storage.remove(doomed);

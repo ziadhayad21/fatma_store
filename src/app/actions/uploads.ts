@@ -61,8 +61,9 @@ export async function confirmDesignUpload(path: string): Promise<{ ok: true } | 
 export async function removeDesignUpload(path: string): Promise<void> {
   if (!isDesignPath(path) || !backendConfigured()) return;
   const sb = createServiceClient();
-  const { count } = await sb.from("order_items").select("id", { count: "exact", head: true }).eq("design_path", path);
-  if (count) return;
+  // looks at order_items.design_path AND inside couples pieces; any doubt keeps the file
+  const { data, error } = await sb.rpc("design_paths_in_use", { p_paths: [path] });
+  if (error || (Array.isArray(data) && data.length > 0)) return;
   await sb.storage.from(BUCKET).remove([path]);
 }
 

@@ -52,6 +52,10 @@ export type ProductRow = {
   is_active: boolean;
   /** "اصنعها بنفسك": sold only with the customer's name or design (no "as is" option) */
   is_diy?: boolean;
+  /** "كابلز": 2 = one product made of two pieces, each configured separately, one fixed price */
+  pieces_count?: number;
+  /** labels of the pieces (e.g. ["المريلة الأولى", "المريلة التانية"]); null = the defaults */
+  piece_labels?: string[] | null;
   sort: number;
   created_at: string; // ISO
 };

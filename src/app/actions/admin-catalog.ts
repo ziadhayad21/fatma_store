@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { catalogSlug, slugWithSuffix, type CatalogSlugKind } from "@/lib/admin/slug";
 import { parseImages, parseMoney, SLUG_RE } from "@/lib/admin/validate";
 import { publicEnv } from "@/lib/env";
+import { DEFAULT_PIECE_LABELS, PIECE_LABEL_MAX } from "@/lib/couples";
 import { validDiscountPercent } from "@/lib/pricing/discount";
 import { invalidateCatalog } from "@/lib/revalidate";
 
@@ -109,6 +110,13 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
   const is_diy = formData.get("is_diy") === "on";
+  const couples = formData.get("is_couples") === "on";
+  const piece_labels = couples
+    ? [1, 2].map((n, i) => txt(formData, `piece_label_${n}`) || DEFAULT_PIECE_LABELS[i])
+    : null;
+  piece_labels?.forEach((l, i) => {
+    if ([...l].length > PIECE_LABEL_MAX) errors[`piece_label_${i + 1}`] = `الاسم طويل (حتى ${PIECE_LABEL_MAX} حرف).`;
+  });
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
   if (name_ar.length < 1 || name_ar.length > 160) errors.name_ar = "اكتب اسم المنتج (حتى 160 حرف).";
@@ -127,9 +135,25 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   const hasColors = !!cats?.find((c) => c.id === category_id)?.has_colors;
 
   // One price per product, or one per colour. The ordering option never changes it.
+  // Couples products: ONE fixed price for the pair; their colours are only switched on/off (each colour
+  // row carries that same price, so base_price = the lowest available colour price stays true).
   let base: number | null = null;
   let colorRows: { color_id: string; price: number; is_available: boolean }[] = [];
-  if (hasColors) {
+  if (couples) {
+    const parsed = parseMoney(formData.get("base_price"));
+    if (parsed === null || parsed === "blank") errors.base_price = "اكتب سعر الكابلز.";
+    else base = parsed;
+    if (hasColors) {
+      const { data: colors, error: colorsError } = await supabase.from("colors").select("id").eq("is_active", true);
+      if (colorsError) return { ok: false, message: "تعذّر تحميل الألوان. جرّب تاني." };
+      colorRows = (colors ?? []).map(({ id: colorId }) => ({
+        color_id: colorId as string,
+        price: typeof base === "number" ? base : 0,
+        is_available: formData.get(`color_available_${colorId}`) === "on",
+      }));
+      if (!colorRows.some((c) => c.is_available)) errors.colors = "فعّل لون واحد على الأقل.";
+    }
+  } else if (hasColors) {
     const { data: colors, error: colorsError } = await supabase.from("colors").select("id").eq("is_active", true);
     if (colorsError) return { ok: false, message: "تعذّر تحميل الألوان. جرّب تاني." };
     for (const { id: colorId } of colors ?? []) {
@@ -171,6 +195,8 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
     images: imgs.ok ? imgs.images : [],
     is_active,
     is_diy,
+    pieces_count: couples ? 2 : 1,
+    piece_labels,
     sort: sort as number,
   };
 

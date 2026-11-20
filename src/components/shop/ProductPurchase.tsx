@@ -7,6 +7,7 @@ import { Accordion } from "@/components/ui/Accordion";
 import { Button } from "@/components/ui/Button";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { designInUse } from "@/lib/cart-actions";
+import { isCouples } from "@/lib/couples";
 import { productRules, type ProductColor } from "@/lib/product-rules";
 import { normalizeName, validateName } from "@/lib/personalization";
 import { findColor, productPrice } from "@/lib/pricing/discount";
@@ -14,7 +15,9 @@ import type { FontId, OrderMode, Product } from "@/lib/types";
 import { designUploader } from "@/lib/upload";
 import { useCart, type CartLine } from "@/store/cart";
 import { useUI } from "@/store/ui";
+import { CouplesForm } from "./CouplesPurchase";
 import { DesignPanel, type DesignState } from "./DesignPanel";
+import { isLight } from "./swatch";
 import { NamePanel } from "./NamePanel";
 import { PriceDisplay } from "./PriceDisplay";
 
@@ -25,12 +28,6 @@ const WAYS: { id: OrderMode; title: string; sub: string }[] = [
   { id: "design", title: "ارفع تصميمك", sub: "لوجو، رسمة أو صورة" },
 ];
 
-/** Light swatches (white, cream…) need a visible edge. */
-function isLight(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  return 0.299 * r + 0.587 * g + 0.114 * b > 200;
-}
 
 /**
  * `?edit=<cart line key>` (from the cart's "عدّل") opens this page pre-filled with that line;
@@ -38,7 +35,7 @@ function isLight(hex: string) {
  */
 export function ProductPurchase({ product }: { product: Product }) {
   return (
-    <Suspense fallback={<PurchaseForm product={product} initial={null} />}>
+    <Suspense fallback={isCouples(product) ? <CouplesForm product={product} initial={null} /> : <PurchaseForm product={product} initial={null} />}>
       <EditAware product={product} />
     </Suspense>
   );
@@ -48,6 +45,7 @@ function EditAware({ product }: { product: Product }) {
   const editKey = useSearchParams().get("edit");
   const line = useCart((s) => (editKey ? s.lines.find((l) => l.key === editKey && l.productId === product.slug) : undefined));
   // the key remounts the form when the cart line (re)hydrates from localStorage
+  if (isCouples(product)) return <CouplesForm key={line?.key ?? "new"} product={product} initial={line ?? null} />;
   return <PurchaseForm key={line?.key ?? "new"} product={product} initial={line ?? null} />;
 }
 

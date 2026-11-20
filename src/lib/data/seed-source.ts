@@ -51,9 +51,29 @@ const seedDiyProducts: ProductRow[] = [
   created_at: "2026-03-01T09:00:00.000Z",
 }));
 
+/** "كابلز" products for the seed fallback (dev / CI only); created hidden by migration …1600 in the real database. */
+const seedCouplesProducts: ProductRow[] = [
+  { slug: "couples-apron-chef-mouse", name_ar: "مريلة كابلز الفار الطباخ" },
+  { slug: "couples-apron-teddy", name_ar: "مريلة كابلز دبدوب" },
+].map((p, i) => ({
+  ...p,
+  id: `00000000-0000-4000-8000-0000000009${i}5`,
+  category_id: "10000000-0000-4000-8000-000000000002",
+  description_ar: "مريلتين للكابلز، لكل واحدة لونها واسمها أو تصميمها.",
+  details_ar: "طقم من مريلتين قماش بجيب وأربطة طويلة.",
+  care_ar: "تغسل بماء بارد أو دافئ حتى 40 درجة، وتكوى على الظهر.",
+  base_price: 650,
+  images: [],
+  is_active: true,
+  pieces_count: 2,
+  piece_labels: ["المريلة الأولى", "المريلة التانية"],
+  sort: 0,
+  created_at: "2026-03-01T08:00:00.000Z",
+}));
+
 function join(): Product[] {
   const byId = new Map(seedCategories.map((c) => [c.id, c]));
-  return [...seedProducts, ...seedDiyProducts]
+  return [...seedProducts, ...seedDiyProducts, ...seedCouplesProducts]
     .filter((p) => p.is_active)
     .map(joinSeedProduct)
     .filter((p) => byId.get(p.category_id)?.is_active);

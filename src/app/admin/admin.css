@@ -1754,3 +1754,75 @@
   }
 }
 
+/* couples product: colours are only switched on/off (one fixed price) */
+.adm-color-row--toggle {
+  grid-template-columns: minmax(0, 1fr);
+}
+.adm-couples {
+  padding: 16px;
+  border: 1px solid #E9E0D3;
+  border-radius: 12px;
+  background: #FFFDFA;
+}
+
+/* Order details: couples item, the two pieces side by side */
+.adm-od-pieces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.adm-od-piece {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #EDE6DB;
+  border-radius: 12px;
+  background: #FFFDF9;
+}
+.adm-od-piece-label {
+  font-size: 13.5px;
+  color: #17233D;
+}
+.adm-od-piece-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #475569;
+}
+.adm-od-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: #CBD5E1;
+}
+.adm-od-dot[data-c="black"] { background: #1A1A1A; }
+.adm-od-dot[data-c="white"] { background: #FFFFFF; }
+.adm-od-dot[data-c="pink"] { background: #F4A7C0; }
+.adm-od .adm-od-piece .adm-nameprint {
+  margin: 0;
+  max-width: 100%;
+  font-size: 22px;
+}
+.adm-od-piece-design {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #fff;
+}
+.adm-od-piece .adm-btn {
+  text-decoration: none;
+}
+@media (max-width: 600px) {
+  .adm-od-pieces {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

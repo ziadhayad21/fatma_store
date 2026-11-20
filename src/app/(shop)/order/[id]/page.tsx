@@ -6,6 +6,8 @@ import { Suspense } from "react";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { itemOptionLine, itemPieceLines } from "@/lib/admin/order-item";
+import type { StoredPiece } from "@/lib/couples";
 import { fontLabel } from "@/lib/name-fonts";
 import { formatPrice } from "@/lib/format";
 import { isOrderStatus, STATUS_AR } from "@/lib/order-status";
@@ -55,6 +57,7 @@ type OrderRow = {
     color: ProductColor | null;
     color_name?: string | null;
     design_path: string | null;
+    pieces?: StoredPiece[] | null;
     unit_price: number;
     original_unit_price?: number | string | null;
     discount_percent?: number | string | null;
@@ -89,7 +92,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
     }
   }
 
-  const designPaths = order.order_items.map((i) => i.design_path).filter((p): p is string => !!p);
+  const designPaths = order.order_items.flatMap((i) => [i.design_path, ...(i.pieces ?? []).map((pc) => pc.design_path)]).filter((p): p is string => !!p);
   const urls: Record<string, string> = {};
   if (designPaths.length) {
     const { data: signed } = await sb.storage.from("designs").createSignedUrls(designPaths, 3600);
@@ -123,6 +126,14 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500 }}>{it.name_snapshot} <span className="muted">× {it.qty}</span></div>
+                  {it.pieces?.length ? (
+                    <div className="line-details">
+                      <span className="muted">{itemOptionLine(it)}</span>
+                      {itemPieceLines(it).map((line, k) => (
+                        <span className="muted" data-piece="" key={k}>{line}</span>
+                      ))}
+                    </div>
+                  ) : (
                   <div className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>
                     {it.mode === "name"
                       ? `باسم «${it.text}»${it.font ? ` — خط ${fontLabel(it.font)}` : ""}`
@@ -131,7 +142,19 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
                         : "زي ما هو"}
                     {it.color && ` — اللون: ${colorLabel(it)}`}
                   </div>
-                  {design && (
+                  )}
+                  {it.pieces?.some((pc) => pc.design_path && urls[pc.design_path]) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {it.pieces.map((pc, k) => pc.design_path && urls[pc.design_path] ? (
+                        <a key={k} className="order-design-preview" href={urls[pc.design_path]} target="_blank" rel="noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable */}
+                          <img src={urls[pc.design_path]} alt="" width={28} height={28} />
+                          تصميم {pc.label}
+                        </a>
+                      ) : null)}
+                    </div>
+                  )}
+                  {!it.pieces?.length && design && (
                     <a className="order-design-preview" href={design} target="_blank" rel="noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable */}
                       <img src={design} alt="" width={28} height={28} />

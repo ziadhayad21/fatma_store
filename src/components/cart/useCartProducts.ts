@@ -30,6 +30,20 @@ export function useCartProducts(refreshKey?: unknown) {
           const product = map.get(line.productId);
           if (!product) continue;
           const rules = productRules(product);
+          // couples: every piece keeps a colour that is still sold (else the first available one)
+          if (rules.couples) {
+            const fix = (c: string | null | undefined) => (rules.colors ? (findColor(product, c)?.id ?? product.colors[0]?.id ?? c ?? null) : null);
+            const pieces = (line.pieces?.length ? line.pieces : [0, 1].map(() => ({ color: line.color ?? null, text: null, designPath: null, designName: null })))
+              .map((p) => ({ ...p, color: fix(p.color) }));
+            const changed = !line.pieces?.length || pieces.some((p, i) => p.color !== line.pieces![i].color);
+            // a line saved before the product became couples can only stay "as is"
+            if (changed) useCart.getState().replace(line.key, { ...line, ...(line.pieces?.length ? {} : { mode: "standard", text: null, font: null, designPath: null, designName: null, notes: null }), pieces, color: pieces[0].color });
+            continue;
+          }
+          if (line.pieces?.length) {
+            useCart.getState().replace(line.key, { ...line, pieces: null });
+            continue;
+          }
           // a colour that is no longer sold falls back to the first available one (its price is shown)
           const color = rules.colors ? (findColor(product, line.color)?.id ?? product.colors[0]?.id ?? line.color ?? null) : null;
           if (!rules.customization && (line.mode !== "standard" || line.text || line.font || line.designPath || line.designName || line.notes)) {

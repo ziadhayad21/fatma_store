@@ -7,7 +7,11 @@ import type { ColorOption, Product } from "@/lib/types";
 export type ProductPricing = Pick<Product, "base_price" | "discount_percent"> & {
   has_colors?: boolean;
   colors?: Pick<ColorOption, "id" | "price">[];
+  /** couples products (2 pieces) have ONE fixed price (base_price): colours never change it */
+  pieces_count?: number | null;
 };
+
+const fixedPrice = (p: { pieces_count?: number | null }) => (p.pieces_count ?? 1) > 1;
 export type PriceBreakdown = { price: number; originalPrice: number | null; discountPercent: number | null };
 
 export function validDiscountPercent(value: number): boolean {
@@ -36,8 +40,9 @@ export function findColor<C extends Pick<ColorOption, "id">>(product: { has_colo
   return product.colors?.find((c) => c.id === colorId);
 }
 
-/** List price before discount: the colour's price, or base_price. */
+/** List price before discount: the colour's price, or base_price (always base_price for couples products). */
 export function listPrice(product: ProductPricing, colorId?: string | null): number {
+  if (fixedPrice(product)) return product.base_price;
   return findColor(product, colorId)?.price ?? product.base_price;
 }
 
@@ -60,7 +65,7 @@ export function productPrice(
  * when the colours do not all cost the same (shown as "من …").
  */
 export function fromPrice(product: ProductPricing): PriceBreakdown & { from: boolean } {
-  const prices = product.has_colors ? (product.colors ?? []).map((c) => c.price) : [];
+  const prices = product.has_colors && !fixedPrice(product) ? (product.colors ?? []).map((c) => c.price) : [];
   if (prices.length === 0) return { ...productPrice(product), from: false };
   const lowest = Math.min(...prices);
   return { ...productPrice({ ...product, has_colors: false, base_price: lowest }), from: new Set(prices).size > 1 };

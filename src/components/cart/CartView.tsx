@@ -8,8 +8,9 @@ import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
 import { TextLink } from "@/components/ui/TextLink";
 import { formatPrice } from "@/lib/format";
-import { variantText } from "@/lib/pricing";
-import { findColor, productPrice, roundMoney } from "@/lib/pricing/discount";
+import { LineDetails, lineThumbPath } from "@/components/cart/LineDetails";
+import { lineDesignPaths } from "@/lib/couples";
+import { productPrice, roundMoney } from "@/lib/pricing/discount";
 import { useCart } from "@/store/cart";
 import { useCartHydrated } from "@/store/useStoreHydrated";
 import { removeCartLine } from "@/lib/cart-actions";
@@ -20,7 +21,7 @@ export function CartView() {
   const storedLines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
   const { products, loaded } = useCartProducts();
-  const designUrls = useDesignUrls(storedLines.map((l) => l.designPath));
+  const designUrls = useDesignUrls(storedLines.flatMap(lineDesignPaths));
 
   const lines = storedLines.filter((l) => products.has(l.productId));
   const count = lines.reduce((a, l) => a + l.qty, 0);
@@ -66,7 +67,8 @@ export function CartView() {
             {lines.map((l) => {
               const p = products.get(l.productId)!;
               const unit = productPrice(p, { color: l.color });
-              const thumb = l.designPath ? designUrls[l.designPath] : undefined;
+              const thumbPath = lineThumbPath(l);
+              const thumb = thumbPath ? designUrls[thumbPath] : undefined;
               return (
                 <div className="row" key={l.key}>
                   <div style={{ display: "flex", gap: 18, alignItems: "center", minWidth: 0 }}>
@@ -78,7 +80,7 @@ export function CartView() {
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                       <Link className="card-name" href={`/products/${p.slug}`} style={{ fontSize: 16 }}>{p.name_ar}</Link>
-                      <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{variantText({ ...l, colorName: findColor(p, l.color)?.name_ar })}</span>
+                      <LineDetails line={l} product={p} />
                       <PriceDisplay {...unit} style={{ fontSize: 14 }} />
                       <div style={{ display: "flex", gap: 16 }}>
                         <Link className="rm" href={`/products/${p.slug}?edit=${encodeURIComponent(l.key)}`} style={{ display: "inline-flex", alignItems: "center" }}>عدّل</Link>

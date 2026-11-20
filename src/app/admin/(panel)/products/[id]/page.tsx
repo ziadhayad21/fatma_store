@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
 import { requireAdmin } from "@/lib/admin/auth";
+import { DEFAULT_PIECE_LABELS, pieceLabels } from "@/lib/couples";
 import type { ProductImage } from "@/lib/types";
 
 export const metadata = { title: "تعديل منتج" };
@@ -37,6 +38,8 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
     sort: "0",
     is_active: true,
     is_diy: false,
+    is_couples: false,
+    piece_labels: [...DEFAULT_PIECE_LABELS],
     images: [],
     colors: colorValues(null),
   };
@@ -61,6 +64,8 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
       sort: String(p.sort),
       is_active: p.is_active,
       is_diy: !!p.is_diy,
+      is_couples: (p.pieces_count ?? 1) > 1,
+      piece_labels: [0, 1].map((i) => pieceLabels({ pieces_count: 2, piece_labels: p.piece_labels })[i]) as [string, string],
       images: (p.images as ProductImage[]) ?? [],
       // a colour product without saved colours yet starts from its current price in every colour
       colors: saved?.length ? colorValues(saved) : colorValues(null).map((c) => ({ ...c, price: String(Number(p.base_price)) })),

@@ -2,6 +2,7 @@
 
 import { confirmPaymentProofUpload } from "@/app/actions/payment-proofs";
 import { productRules, depositAmount, isProductColor } from "@/lib/product-rules";
+import { lineDesignPaths, type LinePiece, type StoredPiece } from "@/lib/couples";
 import { confirmDesignUpload } from "@/app/actions/uploads";
 import { cleanCustomer, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/checkout";
 import { toProduct, PRODUCT_SELECT, type JoinedRow } from "@/lib/data/supabase-source";
@@ -32,6 +33,22 @@ export type PlaceOrderResult =
   | { ok: false; error: string; fieldErrors?: CustomerErrors };
 
 const FONTS = new Set(["ruqaa", "kufi", "naskh", "bold", "modern"]);
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : null);
+
+/** Couples pieces: shape only (at most 4; pricing checks them against the product). */
+function parsePieces(raw: unknown): LinePiece[] | null {
+  if (!Array.isArray(raw)) return null;
+  if (raw.length > 4) return [];
+  return raw.map((p) => {
+    const o = (p && typeof p === "object" ? p : {}) as Record<string, unknown>;
+    return {
+      color: isProductColor(o.color) ? o.color : null,
+      text: str(o.text, 100),
+      designPath: str(o.designPath, 200),
+      designName: str(o.designName, 200),
+    };
+  });
+}
 
 /** Coerce untrusted JSON into OrderLineInput (shape only — pricing validates the rules). */
 function parseLines(raw: unknown[]): OrderLineInput[] | null {
@@ -49,6 +66,7 @@ function parseLines(raw: unknown[]): OrderLineInput[] | null {
       font: typeof l.font === "string" && FONTS.has(l.font) ? (l.font as OrderLineInput["font"]) : null,
       designPath: typeof l.designPath === "string" ? l.designPath : null,
       color: isProductColor(l.color) ? l.color : null,
+      pieces: parsePieces(l.pieces),
       qty: Number(l.qty),
     });
   }
@@ -87,7 +105,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   );
 
   // 2) every uploaded design must exist in the private bucket
-  for (const path of new Set(lines.filter((l) => l.mode === "design").map((l) => l.designPath))) {
+  for (const path of new Set(lines.filter((l) => l.mode === "design").flatMap((l) => (l.pieces ? lineDesignPaths({ pieces: l.pieces }) : [l.designPath])))) {
     if (!isDesignPath(path) || !(await confirmDesignUpload(path)).ok) {
       return { ok: false, error: "في تصميم مرفوع مش موجود. ارفعه تاني من صفحة المنتج." };
     }
@@ -164,9 +182,28 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       product_id: products.get(l.productId)!.id,
       name_snapshot: l.productName,
       mode: l.mode,
-      text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
-      font: l.mode === "name" ? l.font : null,
-      design_path: l.mode === "design" ? l.designPath : null,
+      // couples: the item's own columns keep piece 1 (older views stay readable); `pieces` has all of them.
+      // Its font lives in the pieces (the colour rules keep the item's own font empty).
+      ...(l.pieces
+        ? {
+            text: l.mode === "name" ? l.pieces[0].text : null,
+            font: null,
+            design_path: l.mode === "design" ? l.pieces[0].designPath : null,
+            pieces: l.pieces.map((p): StoredPiece => ({
+              label: p.label,
+              color: p.color,
+              color_name: p.colorName,
+              text: l.mode === "name" ? p.text : null,
+              font: l.mode === "name" ? l.font : null,
+              design_path: l.mode === "design" ? p.designPath : null,
+              design_name: l.mode === "design" ? p.designName : null,
+            })),
+          }
+        : {
+            text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
+            font: l.mode === "name" ? l.font : null,
+            design_path: l.mode === "design" ? l.designPath : null,
+          }),
       color: l.color ?? null,
       unit_price: l.unitPrice,
       original_unit_price: l.originalUnitPrice,
