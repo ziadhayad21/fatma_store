@@ -124,3 +124,12 @@ describe("category ordering rules", () => {
     expect(ok.lines[0]).toMatchObject({ font: "kufi", color: null, unitPrice: 100 });
   });
 });
+
+describe("DIY (اصنعها بنفسك) products", () => {
+  const diy = new Map<string, Product>([["chef-apron", { ...apron, is_diy: true }]]);
+  it("are sold only with a name or a design, at the colour price, like any product", async () => {
+    await expect(price([line()], [], "القاهرة", diy)).rejects.toBeInstanceOf(PricingError);
+    const r = await price([line({ mode: "name", text: "Fatma" }), line({ mode: "design", designPath: "uploads/x.png", color: "pink" })], [], "القاهرة", diy);
+    expect(r.lines.map((l) => [l.mode, l.color, l.unitPrice])).toEqual([["name", "black", 100], ["design", "pink", 100]]);
+  });
+});

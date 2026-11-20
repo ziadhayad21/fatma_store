@@ -10,6 +10,7 @@ import type { Product } from "@/lib/types";
 import { useCart } from "@/store/cart";
 import { useUI } from "@/store/ui";
 import { useWishlist } from "@/store/wishlist";
+import { DiyCard } from "./DiyCard";
 import { PriceDisplay } from "./PriceDisplay";
 
 type Props = {
@@ -41,6 +42,9 @@ export function ProductCard({
   // quick add uses the first available colour; a colour product with none left opens its page instead
   const quickAddColor = rules.colors ? p.colors[0]?.id ?? null : null;
   const canQuickAdd = !rules.colors || quickAddColor !== null;
+
+  // "اصنعها بنفسك": its own card (outline illustration, no quick add: it needs a name or a design)
+  if (p.is_diy && !rules.standard) return <DiyCard product={p} className={className} />;
 
   if (variant === "listing") {
     return (

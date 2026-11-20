@@ -152,7 +152,8 @@ describe("seed + constraints", () => {
 
   it("seeds categories, products and all 27 governorates (fees unset)", async () => {
     const c = await as("postgres", null, "select count(*)::int n from public.categories");
-    const p = await as("postgres", null, "select count(*)::int n from public.products");
+    // the seed migration's products (migration …1400 adds two hidden DIY products)
+    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy");
     const g = await as<{ governorate: string; fee: string | null }>("postgres", null, "select * from public.shipping_rates");
     expect(c.rows[0]).toMatchObject({ n: 3 });
     expect(p.rows[0]).toMatchObject({ n: 30 });
@@ -164,7 +165,8 @@ describe("seed + constraints", () => {
   it("is idempotent when the seed runs twice", async () => {
     const sql = readFileSync(path.resolve("supabase/migrations/20260101000300_seed.sql"), "utf8");
     await db.exec(sql);
-    const p = await as("postgres", null, "select count(*)::int n from public.products");
+    // the seed migration's products (migration …1400 adds two hidden DIY products)
+    const p = await as("postgres", null, "select count(*)::int n from public.products where not is_diy");
     expect(p.rows[0]).toMatchObject({ n: 30 });
   });
 
@@ -306,7 +308,7 @@ describe("admins", () => {
 
   it("can see inactive products too", async () => {
     await setup("update public.products set is_active = false where slug = 'chef-apron'");
-    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(30);
+    expect((await as("authenticated", ADMIN, "select * from public.products")).rows).toHaveLength(32); // + the 2 hidden DIY products
     expect((await as("authenticated", CUSTOMER, "select * from public.products")).rows).toHaveLength(29);
     await setup("update public.products set is_active = true where slug = 'chef-apron'");
   });
@@ -474,7 +476,7 @@ describe("colours + one price per colour (migration …1200)", () => {
     const rows = await as<{ slug: string; n: number; same: boolean }>("postgres", null, `
       select c.slug, count(pc.*)::int n, bool_and(pc.price = p.base_price) same
       from public.products p join public.categories c on c.id = p.category_id
-      left join public.product_colors pc on pc.product_id = p.id group by c.slug order by c.slug`);
+      left join public.product_colors pc on pc.product_id = p.id where not p.is_diy group by c.slug order by c.slug`);
     expect(rows.rows).toEqual([
       { slug: "aprons", n: 30, same: true },
       { slug: "bags", n: 0, same: null },
@@ -627,11 +629,12 @@ describe("suggestions (migration …1300)", () => {
   });
 
   it("admins read and mark as read, but cannot edit or delete what customers sent", async () => {
-    const r = await as<{ text: string; is_read: boolean }>("authenticated", ADMIN, "select text, is_read from public.suggestions");
+    // (migration …1400 adds one sample public suggestion; this test looks at the customer's one)
+    const r = await as<{ text: string; is_read: boolean }>("authenticated", ADMIN, "select text, is_read from public.suggestions where not is_public");
     expect(r.rows).toEqual([{ text: "عايزين مريلة أطفال", is_read: false }]);
-    expect((await as("authenticated", ADMIN, "update public.suggestions set is_read = true")).affected).toBe(1);
+    expect((await as("authenticated", ADMIN, "update public.suggestions set is_read = true where not is_public")).affected).toBe(1);
     expect((await as("authenticated", ADMIN, "update public.suggestions set text = 'changed'")).error).toMatch(/only is_read/);
-    expect((await as("authenticated", ADMIN, "update public.suggestions set order_id = null")).affected).toBe(1); // unlinking is allowed (FK set null path)
+    expect((await as("authenticated", ADMIN, "update public.suggestions set order_id = null where not is_public")).affected).toBe(1); // unlinking is allowed (FK set null path)
     expect((await as("authenticated", ADMIN, "delete from public.suggestions")).code).toBe("42501");
   });
 
@@ -643,5 +646,51 @@ describe("suggestions (migration …1300)", () => {
     const left = await db.query<{ order_id: string | null }>("select order_id from public.suggestions where text = 'tied to an order'");
     await db.exec("rollback");
     expect(left.rows).toEqual([{ order_id: null }]);
+  });
+});
+
+describe("public suggestions + DIY products (migration …1400)", () => {
+  it("the sample suggestion is public, under review, with a reply", async () => {
+    const { rows } = await db.query<{ status: string; admin_reply: string; is_public: boolean }>(
+      "select status, admin_reply, is_public from public.suggestions where text = 'عايزين تضيفوا مريلة أطفال بأسامي الولاد'",
+    );
+    expect(rows).toEqual([{ status: "reviewing", admin_reply: "فكرة حلوة! بندرسها دلوقتي.", is_public: true }]);
+  });
+
+  it("anon reads only public rows, and only text / status / admin_reply / created_at", async () => {
+    await setup("insert into public.suggestions (text) values ('private one')");
+    const r = await as<{ text: string }>("anon", null, "select text, status, admin_reply, created_at from public.suggestions");
+    expect(r.error).toBeUndefined();
+    expect(r.rows.map((x) => x.text)).toEqual(["عايزين تضيفوا مريلة أطفال بأسامي الولاد"]);
+    for (const col of ["order_id", "id", "is_read", "is_public", "*"]) {
+      expect((await as("anon", null, `select ${col} from public.suggestions`)).code).toBe("42501");
+    }
+    expect((await as("anon", null, "update public.suggestions set status = 'done'")).code).toBe("42501");
+    // logged-in non-admins still see nothing
+    expect((await as("authenticated", CUSTOMER, "select text from public.suggestions")).rows).toHaveLength(0);
+  });
+
+  it("admins moderate (public / status / reply); the database checks the values", async () => {
+    const set = (sql: string) => as("authenticated", ADMIN, `update public.suggestions set ${sql} where text = 'private one'`);
+    expect((await set("is_public = true, status = 'done', admin_reply = 'اتعملت'")).affected).toBe(1);
+    expect((await set("status = 'maybe'")).error).toBeDefined();
+    expect((await set(`admin_reply = '${"x".repeat(301)}'`)).error).toBeDefined();
+    expect((await set("admin_reply = ''")).error).toBeDefined();
+    expect((await set("text = 'edited'")).error).toMatch(/only is_read/);
+  });
+
+  it("creates the two DIY products hidden, in every colour, and hides them from the public", async () => {
+    const { rows } = await db.query<{ slug: string; is_active: boolean; is_diy: boolean; cat: string; colors: number }>(
+      `select p.slug, p.is_active, p.is_diy, c.slug as cat,
+              (select count(*)::int from public.product_colors pc where pc.product_id = p.id) as colors
+       from public.products p join public.categories c on c.id = p.category_id where p.is_diy order by p.slug`,
+    );
+    expect(rows).toEqual([
+      { slug: "diy-apron", is_active: false, is_diy: true, cat: "aprons", colors: 3 },
+      { slug: "diy-towel", is_active: false, is_diy: true, cat: "towels", colors: 3 },
+    ]);
+    expect((await as("anon", null, "select slug from public.products where is_diy")).rows).toHaveLength(0);
+    // existing products are not DIY
+    expect((await db.query("select 1 from public.products where not is_diy")).rows.length).toBeGreaterThan(0);
   });
 });

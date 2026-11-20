@@ -2,7 +2,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { source } from "./data/source";
 import type { ShippingRate } from "./data/types";
-import type { Category, Product, ProductPage, ProductSort, Review } from "./types";
+import type { Category, Product, ProductPage, ProductSort, PublicSuggestion, Review } from "./types";
 
 /**
  * The ONLY read-access layer for catalog data (categories + products).
@@ -15,6 +15,7 @@ import type { Category, Product, ProductPage, ProductSort, Review } from "./type
  *        "products" — product lists (home, related)
  *        "shipping" — shipping_rates (checkout)
  *        "reviews" — published customer reviews (home)
+ *        "suggestions" — suggestions the admin made public (home)
  *        "categories" — the category list (nav, footer, chips, home tiles)
  *        "category:<slug>" — one category + the product lists of that category
  *        "product:<slug>" — one product
@@ -28,6 +29,7 @@ export const tags = {
   categories: "categories",
   shipping: "shipping",
   reviews: "reviews",
+  suggestions: "suggestions",
   category: (slug: string) => `category:${slug}`,
   product: (slug: string) => `product:${slug}`,
 };
@@ -73,6 +75,14 @@ export async function getCollectionPage(
   return source.productPage({ categorySlug, sort, page, pageSize: PAGE_SIZE });
 }
 
+/** The category's visible "اصنعها بنفسك" product (first card of the collection), or null. */
+export async function getDiyProduct(categorySlug: string): Promise<Product | null> {
+  "use cache";
+  cacheLife("catalog");
+  cacheTag(tags.catalog, tags.category(categorySlug));
+  return source.diyProduct(categorySlug);
+}
+
 export async function getRelatedProducts(slug: string, limit = 2): Promise<Product[]> {
   "use cache";
   cacheLife("catalog");
@@ -94,4 +104,12 @@ export async function getReviews(): Promise<Review[]> {
   cacheLife("catalog");
   cacheTag(tags.catalog, tags.reviews);
   return source.reviews();
+}
+
+/** Suggestions the admin made public (home page; the admin invalidates the "suggestions" tag on every change). */
+export async function getPublicSuggestions(): Promise<PublicSuggestion[]> {
+  "use cache";
+  cacheLife("catalog");
+  cacheTag(tags.suggestions);
+  return source.publicSuggestions();
 }

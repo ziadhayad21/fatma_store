@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
+import { ProductThumb } from "@/components/shop/ProductThumb";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { QtyStepper } from "@/components/ui/QtyStepper";
@@ -65,7 +65,6 @@ export function CartView() {
             </div>
             {lines.map((l) => {
               const p = products.get(l.productId)!;
-              const img = p.images[0];
               const unit = productPrice(p, { color: l.color });
               const thumb = l.designPath ? designUrls[l.designPath] : undefined;
               return (
@@ -75,7 +74,7 @@ export function CartView() {
                       // eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable
                       <img className="thumb-d" src={thumb} alt="التصميم اللي رفعته" width={96} height={128} />
                     ) : (
-                      <Image src={img.src} alt="" width={96} height={128} style={{ objectPosition: img.position }} />
+                      <ProductThumb product={p} width={96} height={128} />
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                       <Link className="card-name" href={`/products/${p.slug}`} style={{ fontSize: 16 }}>{p.name_ar}</Link>

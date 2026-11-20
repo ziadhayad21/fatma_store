@@ -4,9 +4,10 @@ import Image from "next/image";
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import type { ProductImage } from "@/lib/types";
+import { DiyIllustration, type DiyKind } from "./DiyIllustration";
 
-/** Real product photos only — no design preview. */
-export function ProductGallery({ images }: { images: ProductImage[] }) {
+/** Real product photos only — no design preview. A DIY product without photos shows its outline illustration. */
+export function ProductGallery({ images, diy = null }: { images: ProductImage[]; diy?: DiyKind | null }) {
   const [i, setI] = useState(0);
   const n = images.length;
   const cur = images[i] ?? images[0];
@@ -15,6 +16,11 @@ export function ProductGallery({ images }: { images: ProductImage[] }) {
   return (
     <div className="gal rise">
       <div className="stage">
+        {!cur && diy && (
+          <div className="stage-diy" data-kind={diy}>
+            <DiyIllustration kind={diy} />
+          </div>
+        )}
         {cur && (
           <div className="stage-img" key={cur.src}>
             <Image

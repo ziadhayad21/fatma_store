@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCartProducts } from "@/components/cart/useCartProducts";
 import { useDesignUrls } from "@/components/cart/useDesignUrls";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
+import { ProductThumb } from "@/components/shop/ProductThumb";
 import { removeCartLine } from "@/lib/cart-actions";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
@@ -55,7 +55,6 @@ export function CartDrawer() {
           <ul className="dr-list" style={{ listStyle: "none", margin: 0 }}>
             {lines.map((l) => {
               const p = products.get(l.productId)!;
-              const img = p.images[0];
               const thumb = l.designPath ? designUrls[l.designPath] : undefined;
               return (
                 <li className="dr-row" key={l.key}>
@@ -63,7 +62,7 @@ export function CartDrawer() {
                     // eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable
                     <img className="thumb-d" src={thumb} alt="التصميم اللي رفعته" width={84} height={112} />
                   ) : (
-                    <Image src={img.src} alt="" width={84} height={112} style={{ objectPosition: img.position }} />
+                    <ProductThumb product={p} width={84} height={112} />
                   )}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12 }}>

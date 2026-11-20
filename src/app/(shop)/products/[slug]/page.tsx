@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { diyKind } from "@/components/shop/DiyIllustration";
 import { ProductGallery } from "@/components/shop/ProductGallery";
 import { ProductPurchase } from "@/components/shop/ProductPurchase";
 import { ProductCard } from "@/components/shop/ProductCard";
@@ -70,7 +71,7 @@ async function ProductContent({ params }: PageProps<"/products/[slug]">) {
         <span style={{ color: "var(--ink)" }}>{product.name_ar}</span>
       </nav>
       <div className="pdp">
-        <ProductGallery images={product.images} />
+        <ProductGallery images={product.images} diy={product.is_diy ? diyKind(product.category_slug) : null} />
         <ProductPurchase product={product} />
       </div>
 

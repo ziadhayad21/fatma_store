@@ -61,7 +61,12 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
   );
   const noColors = rules.colors && p.colors.length === 0;
   const lineColor = rules.colors ? color : null;
-  const [mode, setMode] = useState<OrderMode>(rules.customization ? initial?.mode ?? "standard" : "standard");
+  // DIY products have no "as is" option: "ارفع تصميمك" is preselected
+  const defaultMode: OrderMode = rules.standard ? "standard" : "design";
+  const [mode, setMode] = useState<OrderMode>(
+    rules.customization && initial?.mode && (rules.standard || initial.mode !== "standard") ? initial.mode : rules.customization ? defaultMode : "standard",
+  );
+  const ways = rules.standard ? WAYS : WAYS.filter((w) => w.id !== "standard");
   const [qty, setQty] = useState(initial?.qty ?? 1);
   const [name, setName] = useState(initial?.text ?? "");
   const [font, setFont] = useState<FontId>(initial?.font ?? "ruqaa");
@@ -134,7 +139,7 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
       {rules.customization && <div className="rise d2" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <span className="lbl" id="way">طريقة الطلب</span>
         <div role="group" aria-labelledby="way" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {WAYS.map((w) => {
+          {ways.map((w) => {
             const on = mode === w.id;
             return (
               <div key={w.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>

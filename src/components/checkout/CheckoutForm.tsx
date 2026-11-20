@@ -3,13 +3,13 @@
 import { OrderPlacedDialog, type PlacedOrder } from "./OrderPlacedDialog";
 import { PaymentProof } from "./PaymentProof";
 import { productRules, depositAmount, DEPOSIT_NUMBER } from "@/lib/product-rules";
-import Image from "next/image";
 import Link from "next/link";
 import { useId, useRef, useState, useTransition } from "react";
 import { placeOrder } from "@/app/actions/checkout";
 import { useCartProducts } from "@/components/cart/useCartProducts";
 import { useDesignUrls } from "@/components/cart/useDesignUrls";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
+import { ProductThumb } from "@/components/shop/ProductThumb";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cleanCustomer, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/checkout";
@@ -282,7 +282,6 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {lines.map((l) => {
                 const p = products.get(l.productId)!;
-                const img = p.images[0];
                 const thumb = l.designPath ? designUrls[l.designPath] : undefined;
                 return (
                   <div className="sum-line" key={l.key}>
@@ -290,7 +289,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                       // eslint-disable-next-line @next/next/no-img-element -- signed URL, not optimizable
                       <img className="thumb-d" src={thumb} alt="التصميم اللي رفعته" width={56} height={72} />
                     ) : (
-                      <Image src={img.src} alt="" width={56} height={72} style={{ objectPosition: img.position }} />
+                      <ProductThumb product={p} width={56} height={72} />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500 }}>{p.name_ar} <span className="muted">× {l.qty}</span></div>

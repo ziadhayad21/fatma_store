@@ -1,5 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import type { Category, ColorOption, Product, ProductImage, ProductPage, ProductRow, Review } from "@/lib/types";
+import type { Category, ColorOption, Product, ProductImage, ProductPage, ProductRow, PublicSuggestion, Review, SuggestionStatus } from "@/lib/types";
 import type { CatalogSource, ShippingRate } from "./types";
 
 type JoinedColor = {
@@ -51,6 +51,26 @@ function fail(what: string, error: { message: string }): never {
 
 /** Public reads through the publishable key — RLS limits everything to active rows. */
 export const supabaseSource: CatalogSource = {
+  async publicSuggestions() {
+    // RLS returns only rows the admin made public; the public may read only these four columns
+    const { data, error } = await createPublicClient()
+      .from("suggestions")
+      .select("text, status, admin_reply, created_at")
+      .order("created_at", { ascending: false })
+      .limit(24);
+    if (error) {
+      // never take the home page down: no suggestions = no grid (the form still shows)
+      console.error("public suggestions read failed:", error.message);
+      return [];
+    }
+    return (data ?? []).map((s) => ({
+      text: s.text as string,
+      status: (s.status as SuggestionStatus) ?? "new",
+      admin_reply: (s.admin_reply as string | null) || null,
+      created_at: s.created_at as string,
+    })) satisfies PublicSuggestion[];
+  },
+
   async reviews() {
     const { data, error } = await createPublicClient()
       .from("reviews")
@@ -128,6 +148,7 @@ export const supabaseSource: CatalogSource = {
         .from("products")
         .select(PRODUCT_SELECT, { count: "exact" })
         .eq("is_active", true)
+        .eq("is_diy", false)
         .eq("category.slug", categorySlug)
         .eq("category.is_active", true);
       if (sort === "low") q = q.order(priceColumn, { ascending: true }).order("sort", { ascending: true });
@@ -156,6 +177,21 @@ export const supabaseSource: CatalogSource = {
       page: current,
       pageCount: Math.max(1, Math.ceil(total / pageSize)),
     };
+  },
+
+  async diyProduct(categorySlug) {
+    const { data, error } = await createPublicClient()
+      .from("products")
+      .select(PRODUCT_SELECT)
+      .eq("is_active", true)
+      .eq("is_diy", true)
+      .eq("category.slug", categorySlug)
+      .eq("category.is_active", true)
+      .order("sort", { ascending: true })
+      .limit(1);
+    if (error) fail("diy product", error);
+    const row = (data ?? [])[0] as unknown as JoinedRow | undefined;
+    return row ? toProduct(row) : null;
   },
 
   async related(slug, limit) {

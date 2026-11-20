@@ -1,20 +1,21 @@
 import { getAdmin } from "@/lib/admin/auth";
 import { csvCell } from "@/lib/admin/csv";
+import { SUGGESTION_STATUS_LABEL } from "@/lib/suggestions";
 
 export async function GET() {
   const admin = await getAdmin();
   if (!admin) return new Response("Unauthorized", { status: 401 });
   const { data } = await admin.supabase
     .from("suggestions")
-    .select("text, created_at, is_read, order:orders(number)")
+    .select("text, created_at, is_read, is_public, status, admin_reply, order:orders(number)")
     .order("created_at", { ascending: false });
   const rows = (data ?? []).map((r) => {
     const order = r.order as { number: number } | { number: number }[] | null;
     const number = Array.isArray(order) ? order[0]?.number : order?.number;
     // customer text is untrusted: every cell goes through the formula-injection guard
-    return [csvCell(r.text), csvCell(r.created_at), csvCell(number ? `#${number}` : ""), csvCell(r.is_read ? "مقروء" : "جديد")].join(",");
+    return [csvCell(r.text), csvCell(r.created_at), csvCell(number ? `#${number}` : ""), csvCell(r.is_read ? "مقروء" : "جديد"), csvCell(SUGGESTION_STATUS_LABEL[r.status as "new"] ?? r.status), csvCell(r.is_public ? "معروض" : ""), csvCell(r.admin_reply ?? "")].join(",");
   });
-  const csv = ["suggestion,created_at,order,status", ...rows].join("\r\n");
+  const csv = ["suggestion,created_at,order,status,progress,public,reply", ...rows].join("\r\n");
   return new Response("﻿" + csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

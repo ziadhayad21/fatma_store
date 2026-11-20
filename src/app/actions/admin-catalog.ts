@@ -108,6 +108,7 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   const discount = discountEnabled ? parseMoney(formData.get("discount_percent"), 100) : null;
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
+  const is_diy = formData.get("is_diy") === "on";
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
   if (name_ar.length < 1 || name_ar.length > 160) errors.name_ar = "اكتب اسم المنتج (حتى 160 حرف).";
@@ -169,6 +170,7 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
     discount_percent: typeof discount === "number" ? discount : null,
     images: imgs.ok ? imgs.images : [],
     is_active,
+    is_diy,
     sort: sort as number,
   };
 

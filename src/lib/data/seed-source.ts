@@ -30,9 +30,30 @@ export function joinSeedProduct(p: ProductRow): Product {
   };
 }
 
+/**
+ * "اصنعها بنفسك" products for the seed fallback (dev / CI only). In the real database they are
+ * created hidden by migration …1400 and shown from the admin.
+ */
+const seedDiyProducts: ProductRow[] = [
+  { slug: "diy-apron", name_ar: "اصنع مريلتك بنفسك", category_id: "10000000-0000-4000-8000-000000000002" },
+  { slug: "diy-towel", name_ar: "اصنع فوطتك بنفسك", category_id: "10000000-0000-4000-8000-000000000001" },
+].map((p, i) => ({
+  ...p,
+  id: `00000000-0000-4000-8000-0000000009${i}0`,
+  description_ar: "ارفع تصميمك أو اكتب الاسم اللي تحبه، وإحنا نطبعه لك.",
+  details_ar: "قماش سادة جاهز للطباعة.",
+  care_ar: "تغسل بماء بارد أو دافئ حتى 40 درجة، وتكوى على الظهر.",
+  base_price: 150,
+  images: [],
+  is_active: true,
+  is_diy: true,
+  sort: -1,
+  created_at: "2026-03-01T09:00:00.000Z",
+}));
+
 function join(): Product[] {
   const byId = new Map(seedCategories.map((c) => [c.id, c]));
-  return seedProducts
+  return [...seedProducts, ...seedDiyProducts]
     .filter((p) => p.is_active)
     .map(joinSeedProduct)
     .filter((p) => byId.get(p.category_id)?.is_active);
@@ -57,7 +78,7 @@ export const seedSource: CatalogSource = {
   },
 
   async productPage(opts) {
-    const all = join().filter((p) => p.category_slug === opts.categorySlug);
+    const all = join().filter((p) => p.category_slug === opts.categorySlug && !p.is_diy);
     const sorted = [...all].sort((a, b) => {
       if (opts.sort === "low") return fromPrice(a).price - fromPrice(b).price || a.sort - b.sort;
       if (opts.sort === "high") return fromPrice(b).price - fromPrice(a).price || a.sort - b.sort;
@@ -68,6 +89,10 @@ export const seedSource: CatalogSource = {
     const page = Math.min(Math.max(1, opts.page), pageCount);
     const from = (page - 1) * opts.pageSize;
     return { items: sorted.slice(from, from + opts.pageSize), total, page, pageCount };
+  },
+
+  async diyProduct(categorySlug) {
+    return join().find((p) => p.category_slug === categorySlug && p.is_diy) ?? null;
   },
 
   /** other active products, same category first */
@@ -81,6 +106,18 @@ export const seedSource: CatalogSource = {
 
   async reviews() {
     return []; // never fake reviews: the home page hides the section until real ones are published
+  },
+
+  /** mirrors the one sample public suggestion inserted by migration …1400 */
+  async publicSuggestions() {
+    return [
+      {
+        text: "عايزين تضيفوا مريلة أطفال بأسامي الولاد",
+        status: "reviewing",
+        admin_reply: "فكرة حلوة! بندرسها دلوقتي.",
+        created_at: "2026-11-20T00:00:00.000Z",
+      },
+    ];
   },
 
   async shippingRates(): Promise<ShippingRate[]> {

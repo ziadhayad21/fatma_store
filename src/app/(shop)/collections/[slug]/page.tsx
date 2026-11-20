@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { DiyCard } from "@/components/shop/DiyCard";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { Rays } from "@/components/ui/CategoryIcon";
 import { Tile } from "@/components/ui/Tile";
-import { getCategories, getCategory, getCollectionPage } from "@/lib/catalog";
+import { getCategories, getCategory, getCollectionPage, getDiyProduct } from "@/lib/catalog";
 import type { Category, ProductSort } from "@/lib/types";
 import { collectionFonts } from "../_fonts";
 
@@ -91,7 +92,9 @@ async function Grid({
 }) {
   const sp = await searchParams;
   const sort = parseSort(sp.sort);
-  const { items, total, page, pageCount } = await getCollectionPage(slug, sort, parsePage(sp.page));
+  const [{ items, total, page, pageCount }, diy] = await Promise.all([getCollectionPage(slug, sort, parsePage(sp.page)), getDiyProduct(slug)]);
+  // the DIY card leads the first page, whatever the sort
+  const diyFirst = page === 1 ? diy : null;
   // promo tile only while the collection is thin (fewer than 3 products)
   const showPromo = total < 3 && items.length > 0;
   const promoTarget = items[0];
@@ -105,11 +108,12 @@ async function Grid({
 
   return (
     <>
-      {total === 0 ? (
+      {total === 0 && !diyFirst ? (
         <p className="muted" style={{ textAlign: "center", padding: "64px 0" }}>لسه مفيش منتجات في القسم ده.</p>
       ) : (
         <>
           <div className={productGrid}>
+            {diyFirst && <DiyCard product={diyFirst} />}
             {items.map((p, i) => (
               <ProductCard key={p.slug} product={p} variant="listing" priority={i < 4} sizes={productImageSizes} />
             ))}

@@ -2463,3 +2463,336 @@
     padding: 32px 18px 22px;
   }
 }
+
+/* ---------------------------------------------------------------- home: public suggestions */
+.sugg {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
+  background: #fff;
+}
+.sugg-head {
+  justify-content: center;
+  text-align: center;
+}
+.sugg-grid {
+  list-style: none;
+  margin: 0 0 48px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 380px));
+  justify-content: center;
+  gap: 20px;
+}
+.sugg-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 24px 26px 26px;
+  background: var(--page);
+  border: 1px solid #e5ded3;
+  transition:
+    transform 0.45s var(--ease),
+    box-shadow 0.45s;
+}
+.sugg-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 44px -28px rgba(20, 20, 20, 0.3);
+}
+.sugg-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  background: #f6e3a6;
+  color: #6b4e00;
+}
+.sugg-pill[data-s="done"] {
+  background: #e9ede6;
+  color: #3f5a3a;
+}
+.sugg-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sugg-reply {
+  margin: auto 0 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-inline-start: 2px solid var(--accent);
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #3a3732;
+  overflow-wrap: anywhere;
+}
+.sugg-reply-by {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.sugg-form-wrap {
+  max-width: 640px;
+  margin-inline: auto;
+}
+.sugg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sugg-form .lbl {
+  align-items: baseline;
+}
+.sugg-form-title {
+  font-size: 18px;
+  font-weight: 500;
+}
+.sugg-form textarea.inp {
+  height: auto;
+  min-height: 104px;
+  padding: 12px 16px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.sugg-form .btn {
+  align-self: flex-start;
+}
+.sugg-thanks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 18px;
+  background: #e9ede6;
+  color: #3f5a3a;
+  font-size: 15px;
+  font-weight: 500;
+}
+@media (max-width: 600px) {
+  .sugg-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+  .sugg-card {
+    padding: 20px;
+  }
+  .sugg-form .btn {
+    align-self: stretch;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sugg-card {
+    transition: none;
+  }
+  .sugg-card:hover {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------- "اصنعها بنفسك" (DIY) card + illustration */
+.diy-art {
+  display: block;
+  width: 62%;
+  max-width: 220px;
+  height: auto;
+  overflow: visible;
+}
+.diy-art .diy-outline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 7 6;
+}
+.diy-art .diy-print {
+  fill: rgba(255, 255, 255, 0.55);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 3 4;
+}
+.diy-art .diy-print path {
+  fill: none;
+  stroke-dasharray: none;
+}
+.diy-card {
+  --diy-tint: #f9dedc;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.45s var(--ease);
+}
+.diy-card[data-kind="towel"] {
+  --diy-tint: #e9ede6;
+}
+.diy-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 7 / 8;
+  width: 100%;
+  border-radius: 12px;
+  background: var(--diy-tint);
+  transition: box-shadow 0.45s;
+}
+.diy-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.diy-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding-top: 10px;
+}
+.diy-title {
+  margin: 0;
+  color: #292524;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.diy-line {
+  margin: 0;
+  color: #78716c;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.diy-price {
+  font-size: 13px;
+  color: #292524;
+}
+.diy-price .price {
+  font-size: inherit;
+}
+.diy-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  margin-top: 6px;
+  height: 36px;
+  padding: 0 16px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+.diy-card:hover {
+  transform: translateY(-4px);
+}
+.diy-card:hover .diy-stage {
+  box-shadow: 0 22px 40px -26px rgba(20, 20, 20, 0.35);
+}
+.diy-card:hover .diy-cta {
+  background: var(--accent);
+}
+.diy-card:hover .diy-outline {
+  animation: diy-dash 1.4s linear infinite;
+}
+.diy-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+@keyframes diy-dash {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+@media (min-width: 1024px) {
+  .diy-stage {
+    border-radius: 16px;
+  }
+  .diy-badge {
+    top: 12px;
+    right: 12px;
+    font-size: 11px;
+  }
+  .diy-body {
+    padding-top: 12px;
+  }
+  .diy-title {
+    font-size: 15px;
+  }
+  .diy-line {
+    font-size: 12.5px;
+  }
+  .diy-price {
+    font-size: 15px;
+  }
+  .diy-cta {
+    align-self: flex-start;
+    height: 40px;
+    padding: 0 22px;
+    font-size: 14px;
+  }
+}
+/* product page: no photos yet */
+.stage-diy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9dedc;
+}
+.stage-diy[data-kind="towel"] {
+  background: #e9ede6;
+}
+.stage-diy .diy-art {
+  width: 46%;
+  max-width: 280px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .diy-card,
+  .diy-card:hover {
+    transform: none;
+    transition: none;
+  }
+  .diy-card:hover .diy-outline {
+    animation: none;
+  }
+}
+.thumb-diy {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  background: #f9dedc;
+}
+.thumb-diy[data-kind="towel"] {
+  background: #e9ede6;
+}
+.thumb-diy .diy-art {
+  width: 70%;
+}
+.thumb-diy .diy-outline {
+  stroke-width: 4;
+  stroke-dasharray: 10 8;
+}

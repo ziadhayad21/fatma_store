@@ -36,6 +36,7 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
     discount_percent: "",
     sort: "0",
     is_active: true,
+    is_diy: false,
     images: [],
     colors: colorValues(null),
   };
@@ -59,6 +60,7 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
       discount_percent: p.discount_percent == null ? "" : String(p.discount_percent),
       sort: String(p.sort),
       is_active: p.is_active,
+      is_diy: !!p.is_diy,
       images: (p.images as ProductImage[]) ?? [],
       // a colour product without saved colours yet starts from its current price in every colour
       colors: saved?.length ? colorValues(saved) : colorValues(null).map((c) => ({ ...c, price: String(Number(p.base_price)) })),

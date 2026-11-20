@@ -11,11 +11,13 @@ const LEGACY_COLOR_NAME: Record<string, string> = { black: "أسود", white: "�
 export const colorLabel = (item: { color?: string | null; color_name?: string | null }) =>
   item.color_name || (item.color ? LEGACY_COLOR_NAME[item.color] ?? item.color : null);
 
-export function productRules(product: Pick<Product, "category_slug"> & { has_colors?: boolean }) {
+export function productRules(product: Pick<Product, "category_slug"> & { has_colors?: boolean; is_diy?: boolean }) {
   const textile = ["aprons", "towels"].includes(product.category_slug);
   const colors = !!product.has_colors;
-  // colour products print the name in the chosen colour: no font choice
-  return { colors, customization: product.category_slug !== "bags", deposit: textile, font: !colors };
+  const customization = product.category_slug !== "bags";
+  // colour products print the name in the chosen colour: no font choice.
+  // DIY ("اصنعها بنفسك") products are sold only with a name or a design: no "as is" option.
+  return { colors, customization, standard: !(customization && product.is_diy), deposit: textile, font: !colors };
 }
 export const DEPOSIT_NUMBER = "01155907797";
 export const depositAmount = (total: number) => roundMoney(total * 0.3);

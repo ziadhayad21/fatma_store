@@ -38,6 +38,12 @@ export function invalidateCatalog(opts: {
   // "catalog" is the flush-everything tag; use updateTag(tags.catalog) for bulk imports
 }
 
+/** After any admin change to suggestions (public toggle, status, reply). */
+export function invalidateSuggestions() {
+  updateTag(tags.suggestions);
+  revalidatePath("/");
+}
+
 /** After any change to reviews (add / edit / publish / hide / reorder / delete). */
 export function invalidateReviews() {
   updateTag(tags.reviews);

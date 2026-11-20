@@ -23,6 +23,8 @@ export type ProductFormValues = {
   discount_percent: string;
   sort: string;
   is_active: boolean;
+  /** "اصنعها بنفسك": no "as is" option, shown first in its collection */
+  is_diy: boolean;
   images: ProductImage[];
   /** every active colour; used when the category sells by colour */
   colors: ProductColorValue[];
@@ -172,6 +174,13 @@ export function ProductForm({ values: v, categories }: { values: ProductFormValu
           <input type="checkbox" name="is_active" defaultChecked={v.is_active} />
           ظاهر على الموقع
         </label>
+      </div>
+      <div className="adm-f">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="is_diy" defaultChecked={v.is_diy} aria-describedby="is_diy-hint" />
+          منتج اصنعها بنفسك
+        </label>
+        <span className="adm-hint" id="is_diy-hint">بيظهر كأول كارت في القسم برسمة بدل الصورة (لو مفيش صور)، ومن غير اختيار &quot;زي ما هو&quot;: العميل يكتب اسمه أو يرفع تصميمه بس.</span>
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button className="adm-btn" type="submit" disabled={pending || uploading}>{pending ? "جاري الحفظ…" : "حفظ"}</button>

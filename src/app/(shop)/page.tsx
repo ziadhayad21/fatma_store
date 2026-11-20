@@ -3,21 +3,22 @@ import { AboutSection } from "@/components/home/AboutSection";
 import { HeroVideo } from "@/components/home/HeroVideo";
 import { Marquee } from "@/components/home/Marquee";
 import { ReviewsSection } from "@/components/home/ReviewsSection";
+import { SuggestionsSection } from "@/components/home/SuggestionsSection";
 import { VideoReelsSection } from "@/components/home/VideoReelsSection";
 import { Button } from "@/components/ui/Button";
 import { Doodle } from "@/components/ui/Doodle";
 import { TextLink } from "@/components/ui/TextLink";
 import { Tile } from "@/components/ui/Tile";
-import { getCategories, getReviews } from "@/lib/catalog";
+import { getCategories, getPublicSuggestions, getReviews } from "@/lib/catalog";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // dev-only instant-navigation validation opt-out (see (shop)/layout.tsx)
 export const instant = false;
 
-/** Section order: hero, categories, marquee band, reviews, about, footer. */
+/** Section order: hero, categories, marquee band, reels, reviews, suggestions, about, footer. */
 export default async function Home() {
-  const [categories, reviews] = await Promise.all([getCategories(), getReviews()]);
+  const [categories, reviews, suggestions] = await Promise.all([getCategories(), getReviews(), getPublicSuggestions()]);
 
   return (
     <>
@@ -94,6 +95,8 @@ export default async function Home() {
       <VideoReelsSection />
 
       <ReviewsSection reviews={reviews} />
+
+      <SuggestionsSection suggestions={suggestions} />
 
       <AboutSection />
     </>

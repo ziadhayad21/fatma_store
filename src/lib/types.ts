@@ -50,6 +50,8 @@ export type ProductRow = {
   discount_percent?: number | null;
   images: ProductImage[];
   is_active: boolean;
+  /** "اصنعها بنفسك": sold only with the customer's name or design (no "as is" option) */
+  is_diy?: boolean;
   sort: number;
   created_at: string; // ISO
 };
@@ -81,4 +83,14 @@ export type Review = {
   /** name of the product the review is about, when it is set and still visible */
   product_name: string | null;
   avatar_color: string | null;
+};
+
+export type SuggestionStatus = "new" | "reviewing" | "done";
+
+/** A suggestion the admin made public: the only columns the public can read. */
+export type PublicSuggestion = {
+  text: string;
+  status: SuggestionStatus;
+  admin_reply: string | null;
+  created_at: string;
 };

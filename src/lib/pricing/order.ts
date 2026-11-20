@@ -73,6 +73,7 @@ export function cleanLine(line: OrderLineInput, product: Product | undefined): O
   }
   const rules = productRules(product);
   if (!rules.customization && line.mode !== "standard") throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
+  if (!rules.standard && line.mode === "standard") throw new PricingError("اكتب اسمك أو ارفع تصميمك للمنتج ده", "bad_line");
   // the colour must be one the product is currently sold in (its price comes from that colour)
   if (rules.colors && !(isProductColor(line.color) && findColor(product, line.color))) {
     throw new PricingError("اختار اللون", "bad_line");
