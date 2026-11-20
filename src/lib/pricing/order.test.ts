@@ -55,7 +55,7 @@ describe("priceOrder", () => {
   });
   it("prices each colour separately and snapshots the colour name", async () => {
     const r = await price([line({ color: "black" }), line({ color: "pink", qty: 2 })], [], "القاهرة", withColors({ black: 100, pink: 130 }));
-    expect(r.lines.map((l) => [l.color, l.colorName, l.unitPrice, l.lineTotal])).toEqual([["black", "أسود", 100, 100], ["pink", "وردي", 130, 260]]);
+    expect(r.lines.map((l) => [l.color, l.colorName, l.unitPrice, l.lineTotal])).toEqual([["black", "أسود", 100, 100], ["pink", "بينك", 130, 260]]);
     expect(r.subtotal).toBe(360);
   });
   it("refuses a colour the product is not sold in", async () => {
@@ -183,7 +183,7 @@ describe("couples (كابلز) products", () => {
     expect(l.text).toBeNull();
     expect(l.pieces).toEqual([
       { label: "المريلة الأولى", color: "black", colorName: "أسود", text: "Beso kitchen", designPath: null, designName: null },
-      { label: "المريلة التانية", color: "pink", colorName: "وردي", text: "فاطمة", designPath: null, designName: null },
+      { label: "المريلة التانية", color: "pink", colorName: "بينك", text: "فاطمة", designPath: null, designName: null },
     ]);
   });
 

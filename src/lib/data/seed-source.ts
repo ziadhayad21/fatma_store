@@ -11,11 +11,11 @@ import type { CatalogSource, ShippingRate } from "./types";
  * Phase 4 replaces this file's implementation; `lib/catalog.ts` does not change.
  */
 
-/** Mirrors the colours seeded by migration …1200 (every colour at the product's price). */
+/** Mirrors the colours in the database (seeded by migration …1200; pink renamed to "بينك" later). Every colour at the product's price. */
 export const SEED_COLORS = [
   { id: "black", name_ar: "أسود", hex: "#1A1A1A" },
   { id: "white", name_ar: "أبيض", hex: "#FFFFFF" },
-  { id: "pink", name_ar: "وردي", hex: "#F4A7C0" },
+  { id: "pink", name_ar: "بينك", hex: "#F4A7C0" },
 ] as const;
 
 export function joinSeedProduct(p: ProductRow): Product {
