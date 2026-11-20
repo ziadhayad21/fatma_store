@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanSuggestion, relativeTime, SUGGESTION_MAX } from "./suggestions";
+import { cleanSuggestion, SUGGESTION_MAX } from "./suggestions";
 
 describe("cleanSuggestion", () => {
   it("trims and keeps the text", () => {
@@ -31,22 +31,3 @@ describe("cleanSuggestion", () => {
   });
 });
 
-describe("relativeTime", () => {
-  const now = Date.parse("2026-11-20T12:00:00Z");
-  const ago = (ms: number) => relativeTime(new Date(now - ms).toISOString(), now);
-  const MIN = 60_000, H = 60 * MIN, D = 24 * H;
-  it("speaks Egyptian Arabic", () => {
-    expect(ago(10_000)).toBe("دلوقتي");
-    expect(ago(MIN)).toBe("من دقيقة");
-    expect(ago(2 * MIN)).toBe("من دقيقتين");
-    expect(ago(5 * MIN)).toBe("من 5 دقايق");
-    expect(ago(25 * MIN)).toBe("من 25 دقيقة");
-    expect(ago(H)).toBe("من ساعة");
-    expect(ago(3 * H)).toBe("من 3 ساعات");
-    expect(ago(2 * D)).toBe("من يومين");
-    expect(ago(12 * D)).toBe("من 12 يوم");
-    expect(ago(65 * D)).toBe("من شهرين");
-    expect(ago(400 * D)).toBe("من سنة");
-    expect(relativeTime("not a date", now)).toBe("");
-  });
-});

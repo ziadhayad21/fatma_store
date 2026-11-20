@@ -2,7 +2,7 @@
 export const SUGGESTION_MIN = 3;
 export const SUGGESTION_MAX = 500;
 /** suggestions per page on the home page */
-export const SUGGESTIONS_PAGE = 9;
+export const SUGGESTIONS_PAGE = 6;
 
 export type SuggestionCheck = { ok: true; text: string } | { ok: false; error: string };
 
@@ -30,22 +30,3 @@ export function cleanSuggestion(raw: unknown): SuggestionCheck {
   return { ok: true, text };
 }
 
-/** "دلوقتي", "من 5 دقايق", "من ساعتين", "من يومين", "من 3 شهور" … (Egyptian Arabic). */
-export function relativeTime(iso: string, now: number = Date.now()): string {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "";
-  const minutes = Math.max(0, Math.floor((now - t) / 60_000));
-  // one, two (dual), 3–10 (plural), 11+ (singular)
-  const say = (n: number, one: string, two: string, few: string, many: string) =>
-    n === 1 ? `من ${one}` : n === 2 ? `من ${two}` : `من ${n} ${n <= 10 ? few : many}`;
-  if (minutes < 1) return "دلوقتي";
-  if (minutes < 60) return say(minutes, "دقيقة", "دقيقتين", "دقايق", "دقيقة");
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return say(hours, "ساعة", "ساعتين", "ساعات", "ساعة");
-  const days = Math.floor(hours / 24);
-  if (days < 30) return say(days, "يوم", "يومين", "أيام", "يوم");
-  const months = Math.floor(days / 30);
-  if (months < 12) return say(months, "شهر", "شهرين", "شهور", "شهر");
-  const years = Math.floor(days / 365);
-  return say(Math.max(1, years), "سنة", "سنتين", "سنين", "سنة");
-}
