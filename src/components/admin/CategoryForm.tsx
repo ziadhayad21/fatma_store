@@ -16,6 +16,8 @@ export type CategoryFormValues = {
   is_active: boolean;
   /** products are sold per colour, with a price per colour */
   has_colors: boolean;
+  /** products in this category may be "كابلز" (two pieces, one fixed price) */
+  allows_couples: boolean;
   image: ProductImage[];
 };
 
@@ -68,6 +70,13 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
           المنتجات بتتباع بالألوان
         </label>
         <span className="adm-hint" id="has-colors-hint">لما يكون مفعّل، كل منتج في القسم ليه ألوان وسعر لكل لون، والعميل يختار اللون من صفحة المنتج.</span>
+      </div>
+      <div className="adm-f">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="allows_couples" defaultChecked={v.allows_couples} aria-describedby="allows-couples-hint" />
+          يسمح بمنتجات كابلز
+        </label>
+        <span className="adm-hint" id="allows-couples-hint">لما يكون مفعّل، تقدر تعمل في القسم ده منتج كابلز: قطعتين في منتج واحد بسعر ثابت.</span>
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button className="adm-btn" type="submit" disabled={pending}>{pending ? "جاري الحفظ…" : "حفظ"}</button>

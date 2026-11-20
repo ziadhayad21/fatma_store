@@ -27,8 +27,10 @@ async function insertCatalogRecord(
   table: "products" | "categories",
   kind: CatalogSlugKind,
   row: { name_ar: string } & Record<string, unknown>,
+  /** a slug the admin typed for a new record (cleaned the same way); otherwise it comes from the name */
+  wanted?: string,
 ) {
-  const base = catalogSlug(row.name_ar, kind);
+  const base = wanted ? catalogSlug(wanted, kind) : catalogSlug(row.name_ar, kind);
   const candidates = [
     base,
     ...Array.from({ length: 20 }, (_, i) => slugWithSuffix(base, kind, String(i + 2))),
@@ -129,10 +131,16 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   if (!imgs.ok) errors.images = imgs.error;
 
   // what changed? (to know which cache tags to expire) + does this category sell by colour?
-  const { data: cats } = await supabase.from("categories").select("id, slug, has_colors");
+  const { data: cats } = await supabase.from("categories").select("id, slug, has_colors, allows_couples");
   const slugOf = new Map((cats ?? []).map((c) => [c.id as string, c.slug as string]));
   if (UUID.test(category_id) && !slugOf.has(category_id)) errors.category_id = "اختار قسم صحيح.";
   const hasColors = !!cats?.find((c) => c.id === category_id)?.has_colors;
+  if (couples && UUID.test(category_id) && !cats?.find((c) => c.id === category_id)?.allows_couples) {
+    errors.product_type = "القسم ده مش بيسمح بمنتجات كابلز. اختار نوع تاني أو قسم تاني.";
+  }
+  // new products may get a hand-typed slug (existing ones keep theirs: carts and links point to it)
+  const wantedSlug = isNew ? txt(formData, "slug").toLowerCase() : "";
+  if (wantedSlug && !SLUG_RE.test(catalogSlug(wantedSlug, "product"))) errors.slug = "الرابط لازم يكون حروف إنجليزي وأرقام وشرطة (-) بس.";
 
   // One price per product, or one per colour. The ordering option never changes it.
   // Couples products: ONE fixed price for the pair; their colours are only switched on/off (each colour
@@ -201,7 +209,7 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   };
 
   const saved = isNew
-    ? await insertCatalogRecord(supabase, "products", "product", row)
+    ? await insertCatalogRecord(supabase, "products", "product", row, wantedSlug || undefined)
     : (await supabase.from("products").update(row).eq("id", id).select("id, slug").single()).data;
   if (!saved) return { ok: false, message: "تعذّر الحفظ." };
 
@@ -242,6 +250,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
   const has_colors = formData.get("has_colors") === "on";
+  const allows_couples = formData.get("allows_couples") === "on";
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
   if (name_ar.length < 1 || name_ar.length > 80) errors.name_ar = "اكتب اسم القسم (حتى 80 حرف).";
@@ -263,6 +272,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
     sort: sort as number,
     is_active,
     has_colors,
+    allows_couples,
   };
   let hadColors = false;
   if (!isNew) {

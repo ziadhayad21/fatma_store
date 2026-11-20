@@ -16,7 +16,7 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
   const { supabase } = await requireAdmin();
 
   const [{ data: cats }, { data: colors }] = await Promise.all([
-    supabase.from("categories").select("id, name_ar, has_colors").order("sort"),
+    supabase.from("categories").select("id, slug, name_ar, has_colors, allows_couples").order("sort"),
     supabase.from("colors").select("id, name_ar, hex").eq("is_active", true).order("sort"),
   ]);
   // every active colour, with this product's saved price / availability (new products: all available, no price yet)
@@ -78,14 +78,17 @@ export default async function ProductEdit({ params, searchParams }: PageProps<"/
         <div>
           <p className="adm-sub"><Link href="/admin/products">← المنتجات</Link></p>
           <h1>{isNew ? "منتج جديد" : values.name_ar}</h1>
-          {sp.created && <p className="adm-ok" role="status">اتضاف المنتج.</p>}
           {sp.colors === "failed" && <p className="adm-err" role="alert">المنتج اتضاف لكن أسعار الألوان ما اتحفظتش. راجعها واضغط حفظ.</p>}
         </div>
         {!isNew && (
           <a className="adm-btn ghost" href={`/products/${slug}`} target="_blank" rel="noreferrer">فتح في الموقع ↗</a>
         )}
       </div>
-      <ProductForm values={values} categories={(cats ?? []).map((c) => ({ id: c.id, name_ar: c.name_ar, has_colors: !!c.has_colors }))} />
+      <ProductForm
+        values={values}
+        notice={sp.created ? "اتضاف المنتج." : undefined}
+        categories={(cats ?? []).map((c) => ({ id: c.id, slug: c.slug, name_ar: c.name_ar, has_colors: !!c.has_colors, allows_couples: !!c.allows_couples }))}
+      />
     </>
   );
 }
