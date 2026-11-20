@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteOrder } from "@/components/admin/DeleteOrder";
 import { DepositReview } from "@/components/admin/DepositReview";
 import { OrderInvoice, type InvoiceItem } from "@/components/admin/OrderInvoice";
 import { PrintInvoiceButton } from "@/components/admin/PrintInvoiceButton";
@@ -35,7 +36,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   const { supabase } = await requireAdmin();
 
   const { data } = await supabase.from("orders")
-    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, order_items(*)")
+    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, files_purged_at, order_items(*)")
     .eq("id", id)
     .maybeSingle();
   if (!data) notFound();
@@ -76,6 +77,9 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   );
 
   const proof = data.payment_proof_path ? await supabase.storage.from(PROOF_BUCKET).createSignedUrl(data.payment_proof_path, 3600) : null;
+  // the old-files cleanup removed this order's files: say so instead of showing a broken file
+  const purged = !!data.files_purged_at;
+  const purgedNote = <span className="adm-purged">الملف اتمسح بعد التنظيف</span>;
   const pay = paymentMethods.find((m) => m.id === data.payment_method)?.label ?? data.payment_method;
 
   // money (same rules as before: the deposit counts as paid once an admin confirmed it)
@@ -174,6 +178,8 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                                         <a className="adm-btn sm" href={pd.download}>
                                           <Icon name="upload" size={15} /> تحميل التصميم
                                         </a>
+                                      ) : purged ? (
+                                        purgedNote
                                       ) : (
                                         <span className="adm-err">ملف التصميم مش متاح.</span>
                                       )}
@@ -195,6 +201,8 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                               <a className="adm-btn sm" href={d.download}>
                                 <Icon name="upload" size={15} /> تحميل التصميم
                               </a>
+                            ) : purged ? (
+                              purgedNote
                             ) : (
                               <span className="adm-err">ملف التصميم مش متاح.</span>
                             )}
@@ -264,6 +272,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                   <span>إثبات التحويل ↗</span>
                 </a>
               )}
+              {data.payment_proof_path && !proof?.data?.signedUrl && purged && <p className="adm-od-proof-gone">إثبات التحويل: {purgedNote}</p>}
               {depositStatus === "submitted" && <div className="adm-od-review"><DepositReview id={data.id} /></div>}
 
               <div className="adm-od-collect">
@@ -274,6 +283,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
             </section>
           </aside>
         </div>
+        <DeleteOrder id={data.id} number={data.number} />
       </div>
       <OrderInvoice order={data} items={items} />
     </>

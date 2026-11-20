@@ -2,15 +2,16 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { DESIGN_ACCEPT, validateDesignFile } from "@/lib/personalization";
+import { formatBytes } from "@/lib/image-compress";
+import { DESIGN_ACCEPT, validateImageBeforeCompression } from "@/lib/personalization";
 import { useDesignUrls } from "@/components/cart/useDesignUrls";
 import { designUploader, UploadError } from "@/lib/upload";
 
 export type DesignState =
   | { status: "idle" }
-  | { status: "uploading"; name: string; progress: number; previewUrl: string }
-  // previewUrl is null when restored from the cart (a signed URL is fetched instead)
-  | { status: "done"; name: string; path: string; previewUrl: string | null };
+  | { status: "uploading"; name: string; progress: number; previewUrl: string; stage?: "compress" | "upload" }
+  // previewUrl is null when restored from the cart (a signed URL is fetched instead); size = stored bytes
+  | { status: "done"; name: string; path: string; previewUrl: string | null; size?: number };
 
 type Props = { value: DesignState; onChange: (s: DesignState) => void };
 
@@ -43,7 +44,8 @@ export function DesignPanel({ value, onChange }: Props) {
 
   async function take(file: File | undefined) {
     if (!file) return;
-    const check = validateDesignFile(file);
+    // the stored size (max 10 MB) is checked by the server after the (lossless) preparation
+    const check = validateImageBeforeCompression(file);
     if (!check.ok) {
       setError(check.error);
       return;
@@ -52,14 +54,27 @@ export function DesignPanel({ value, onChange }: Props) {
     const my = ++token.current;
     const previous = value;
     const previewUrl = URL.createObjectURL(file);
-    onChange({ status: "uploading", name: file.name, progress: 0, previewUrl });
+    let stage: "compress" | "upload" = "compress";
+    let progress = 0;
+    const report = () => {
+      if (token.current === my) onChange({ status: "uploading", name: file.name, progress, previewUrl, stage });
+    };
+    report();
     try {
-      const res = await designUploader.upload(file, (progress) => {
-        if (token.current === my) onChange({ status: "uploading", name: file.name, progress, previewUrl });
-      });
+      const res = await designUploader.upload(
+        file,
+        (p) => {
+          progress = p;
+          report();
+        },
+        (s) => {
+          stage = s;
+          report();
+        },
+      );
       if (token.current !== my) return;
       own.current.add(res.path);
-      onChange({ status: "done", name: res.name, path: res.path, previewUrl });
+      onChange({ status: "done", name: res.name, path: res.path, previewUrl, size: res.size });
       if (previous.status === "done" && own.current.has(previous.path)) {
         void designUploader.remove(previous.path).catch(() => {});
       }
@@ -131,11 +146,15 @@ export function DesignPanel({ value, onChange }: Props) {
             </span>
             {value.status === "uploading" ? (
               <>
-                <span className="muted" style={{ fontSize: 12 }} role="status">بيترفع… {value.progress}%</span>
+                <span className="muted" style={{ fontSize: 12 }} role="status">
+                  {value.stage === "compress" ? "بيجهّز الملف…" : `بيترفع… ${value.progress}%`}
+                </span>
                 <span className="bar-p" aria-hidden="true"><i style={{ width: `${value.progress}%` }} /></span>
               </>
             ) : (
-              <span className="muted" style={{ fontSize: 12 }} role="status">اترفع بنجاح</span>
+              <span className="muted" style={{ fontSize: 12 }} role="status">
+                اترفع بنجاح{value.size ? <> · <bdi dir="ltr">{formatBytes(value.size)}</bdi></> : null}
+              </span>
             )}
           </div>
           {value.status === "done" && (

@@ -1,7 +1,6 @@
-import { requestProductImageUpload } from "@/app/actions/admin-images";
-import { PRODUCT_IMAGE_MAX } from "@/lib/admin/validate";
+import { validateImageBeforeCompression } from "@/lib/personalization";
 import type { ProductImage } from "@/lib/types";
-import { putWithProgress } from "@/lib/upload";
+import { uploadProductPhoto, type UploadStage } from "@/lib/upload";
 
 /** Photos fill a ~600px-wide frame on the product page; anything smaller looks blurred. */
 export const MIN_IMAGE_SIDE = 500;
@@ -31,17 +30,24 @@ async function imageSize(file: File): Promise<{ width: number; height: number } 
   }
 }
 
-/** Checks one file (type, size, dimensions) and uploads it to the public bucket. Throws ImageUploadError. */
-export async function uploadProductImage(file: File, onProgress: (pct: number) => void): Promise<ProductImage> {
-  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new ImageUploadError("الصورة لازم تكون PNG أو JPG أو WEBP.");
-  if (file.size > PRODUCT_IMAGE_MAX) throw new ImageUploadError("حجم الصورة أكبر من 5 ميجا.");
+export type UploadedPhoto = { image: ProductImage; name: string; size: number; originalSize: number };
+
+/**
+ * Checks one file (type, dimensions), then compresses (WebP, max 2000px) and uploads it through lib/upload.
+ * The server caps the stored file at 5 MB. Throws ImageUploadError.
+ */
+export async function uploadProductImage(file: File, onProgress: (pct: number) => void, onStage?: (s: UploadStage) => void): Promise<UploadedPhoto> {
+  const pre = validateImageBeforeCompression(file);
+  if (!pre.ok) throw new ImageUploadError(pre.error);
   const dims = await imageSize(file);
   if (!dims) throw new ImageUploadError(`تعذّر قراءة الصورة ${file.name}. جرّب تصدّرها تاني.`);
   if (Math.min(dims.width, dims.height) < MIN_IMAGE_SIDE) {
     throw new ImageUploadError(`الصورة ${file.name} صغيرة جدًا (${dims.width}×${dims.height} بكسل) وهتظهر مغبّشة. ارفع صورة أقل ضلع فيها ${MIN_IMAGE_SIDE} بكسل على الأقل.`);
   }
-  const t = await requestProductImageUpload({ type: file.type, size: file.size });
-  if (!t.ok) throw new ImageUploadError(t.error);
-  await putWithProgress(t.uploadUrl, file, onProgress);
-  return { src: t.publicUrl, alt: "", position: "center" };
+  try {
+    const res = await uploadProductPhoto(file, { onProgress, onStage });
+    return { image: { src: res.publicUrl, alt: "", position: "center" }, name: file.name, size: res.size, originalSize: res.originalSize };
+  } catch (e) {
+    throw new ImageUploadError(e instanceof Error && e.message ? e.message : "الرفع فشل.");
+  }
 }

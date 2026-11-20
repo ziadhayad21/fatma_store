@@ -1,31 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { requestPaymentProofUpload, confirmPaymentProofUpload } from "@/app/actions/payment-proofs";
-import { validateDesignFile } from "@/lib/personalization";
-import { putWithProgress } from "@/lib/upload";
+import { formatBytes } from "@/lib/image-compress";
+import { validateImageBeforeCompression } from "@/lib/personalization";
+import { uploadPaymentProof, UploadError, type UploadStage } from "@/lib/upload";
 
+/** Deposit transfer proof: compressed in the browser (WebP, max 1280px), then uploaded to the private bucket. */
 export function PaymentProof({ onChange, onBusy }: { onChange: (path: string | null) => void; onBusy: (busy: boolean) => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<UploadStage>("compress");
+  const [stored, setStored] = useState<{ name: string; size: number; originalSize: number } | null>(null);
   async function upload(file?: File) {
     if (busy || !file) return true;
     onChange(null);
     setMessage("");
-    const check = validateDesignFile(file);
+    setStored(null);
+    const check = validateImageBeforeCompression(file);
     if (!check.ok) { setMessage(check.error); return false; }
-    setBusy(true); onBusy(true); setProgress(0);
+    setBusy(true); onBusy(true); setProgress(0); setStage("compress");
     try {
-      const ticket = await requestPaymentProofUpload({ type: file.type, size: file.size });
-      if (!ticket.ok) throw new Error(ticket.error);
-      await putWithProgress(ticket.uploadUrl, file, setProgress);
-      const result = await confirmPaymentProofUpload(ticket.path);
-      if (!result.ok) throw new Error(result.error);
-      onChange(ticket.path); setMessage("تم رفع إثبات التحويل. العربون في انتظار مراجعة الإدارة.");
+      const res = await uploadPaymentProof(file, { onProgress: setProgress, onStage: setStage });
+      onChange(res.path);
+      setStored({ name: file.name, size: res.size, originalSize: res.originalSize });
+      setMessage("تم رفع إثبات التحويل. العربون في انتظار مراجعة الإدارة.");
       return true;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "تعذّر رفع إثبات التحويل. جرّب تاني.");
+      setMessage(error instanceof UploadError || error instanceof Error ? error.message : "تعذّر رفع إثبات التحويل. جرّب تاني.");
       return false;
     } finally { setBusy(false); onBusy(false); }
   }
@@ -35,7 +37,12 @@ export function PaymentProof({ onChange, onBusy }: { onChange: (path: string | n
       const input = e.currentTarget;
       if (!(await upload(input.files?.[0]))) input.value = "";
     }} />
-    <span className="muted">PNG / JPG / WEBP — حتى 10 ميجا</span>
-    <p role="status" aria-live="polite">{busy ? `جاري رفع الإثبات… ${progress}%` : message}</p>
+    <span className="muted">PNG / JPG / WEBP — بنصغّرها تلقائيًا قبل الرفع</span>
+    <p role="status" aria-live="polite">
+      {busy ? (stage === "compress" ? "بيجهّز الصورة…" : `جاري رفع الإثبات… ${progress}%`) : message}
+      {!busy && stored && (
+        <span className="muted proof-size" dir="auto"> {stored.name} · <bdi dir="ltr">{formatBytes(stored.size)}</bdi></span>
+      )}
+    </p>
   </div>;
 }

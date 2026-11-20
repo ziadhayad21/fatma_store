@@ -48,3 +48,11 @@ export const DESIGN_PATH_RE =
   /^uploads\/\d{4}-\d{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(png|jpg|webp)$/;
 
 export const isDesignPath = (v: unknown): v is string => typeof v === "string" && DESIGN_PATH_RE.test(v);
+
+/** Originals may be larger than the stored limit: they are compressed in the browser first (the server checks the result). */
+export const ORIGINAL_MAX_BYTES = 40 * 1024 * 1024;
+export function validateImageBeforeCompression(file: { type: string; size: number }): Check {
+  if (!(DESIGN_TYPES as readonly string[]).includes(file.type)) return { ok: false, error: "الملف لازم يكون صورة PNG أو JPG أو WEBP." };
+  if (!(file.size > 0) || file.size > ORIGINAL_MAX_BYTES) return { ok: false, error: "الصورة كبيرة جدًا (أكتر من 40 ميجا)." };
+  return { ok: true };
+}

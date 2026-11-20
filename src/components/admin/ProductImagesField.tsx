@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { formatBytes } from "@/lib/image-compress";
 import type { ProductImage } from "@/lib/types";
 import { IMAGE_ACCEPT, ImageUploadError, MIN_IMAGE_SIDE, POSITIONS, uploadProductImage } from "./image-upload";
 
@@ -23,7 +24,9 @@ type Props = {
 export function ProductImagesField({ name, initial, max, onUploadingChange, onChange }: Props) {
   const [images, setImagesState] = useState<ProductImage[]>(initial);
   const current = useRef(initial); // the latest list, also between renders during a multi-file upload
-  const [busy, setBusy] = useState<{ name: string; pct: number } | null>(null);
+  const [busy, setBusy] = useState<{ name: string; pct: number; stage?: "compress" | "upload" } | null>(null);
+  // the last uploaded files with their stored size (after compression)
+  const [uploaded, setUploaded] = useState<{ name: string; size: number; originalSize: number }[]>([]);
   const [error, setError] = useState("");
   const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [dropOver, setDropOver] = useState(false);
@@ -68,7 +71,13 @@ export function ProductImagesField({ name, initial, max, onUploadingChange, onCh
       }
       setBusy({ name: file.name, pct: 0 });
       try {
-        const img = await uploadProductImage(file, (pct) => setBusy({ name: file.name, pct }));
+        const res = await uploadProductImage(
+          file,
+          (pct) => setBusy((b) => ({ name: file.name, pct, stage: b?.stage })),
+          (stage) => setBusy((b) => ({ name: file.name, pct: b?.pct ?? 0, stage })),
+        );
+        const img = res.image;
+        setUploaded((u) => [...u, { name: res.name, size: res.size, originalSize: res.originalSize }].slice(-8));
         setImages((l) => [...l, img]);
         count++;
       } catch (e) {
@@ -224,9 +233,19 @@ export function ProductImagesField({ name, initial, max, onUploadingChange, onCh
 
       {busy && (
         <div role="status" className="adm-pimgs-busy">
-          <span className="adm-hint">بيترفع {busy.name}… {busy.pct}%</span>
+          <span className="adm-hint">{busy.stage === "compress" ? `بيجهّز ${busy.name}…` : `بيترفع ${busy.name}… ${busy.pct}%`}</span>
           <div className="adm-bar"><i style={{ width: `${busy.pct}%` }} /></div>
         </div>
+      )}
+      {!busy && uploaded.length > 0 && (
+        <ul className="adm-uploaded" aria-label="آخر صور اترفعت">
+          {uploaded.map((u, k) => (
+            <li key={k}>
+              <span dir="auto">{u.name}</span> · <bdi dir="ltr">{formatBytes(u.size)}</bdi>
+              {u.size < u.originalSize && <span className="adm-hint"> (كانت <bdi dir="ltr">{formatBytes(u.originalSize)}</bdi>)</span>}
+            </li>
+          ))}
+        </ul>
       )}
       {error && <span className="adm-err" role="alert">{error}</span>}
     </div>

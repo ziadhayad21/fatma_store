@@ -1,9 +1,8 @@
-import { DEPOSIT_LABEL, type DepositStatus } from "@/lib/product-rules";
 import Link from "next/link";
+import { OrdersTable, type OrderRow } from "@/components/admin/OrdersTable";
 import { requireAdmin } from "@/lib/admin/auth";
-import { formatDay, orderDateBoundary } from "@/lib/admin/format";
+import { orderDateBoundary } from "@/lib/admin/format";
 import { orderSearchFilter } from "@/lib/admin/search";
-import { formatPrice } from "@/lib/format";
 import { isOrderStatus, ORDER_STATUSES, STATUS_AR } from "@/lib/order-status";
 
 export const metadata = { title: "الطلبات" };
@@ -93,64 +92,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       {dateError && <div className="adm-alert" role="alert">{dateError}</div>}
       {error && <div className="adm-alert" role="alert">حصلت مشكلة في تحميل الطلبات.</div>}
 
-      <div className="adm-table-wrap adm-orders-table" role="region" aria-label="جدول الطلبات" tabIndex={0}>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">الرقم</th>
-              <th scope="col">التاريخ</th>
-              <th scope="col">العميل</th>
-              <th scope="col">المحافظة</th>
-              <th scope="col" className="num">الإجمالي</th>
-              <th scope="col">الحالة</th>
-              <th scope="col">العربون</th>
-              <th scope="col"><span className="vh">الإجراءات</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(orders ?? []).map((o) => (
-              <tr key={o.id}>
-                <td>
-                  <Link href={`/admin/orders/${o.id}`} className="adm-order-num-link">
-                    <bdi dir="ltr">#{o.number}</bdi>
-                  </Link>
-                </td>
-                <td className="adm-date-cell">
-                  <time dateTime={o.created_at}>{formatDay(o.created_at)}</time>
-                </td>
-                <td className="adm-customer-cell">
-                  <span className="adm-customer-name" dir="auto">{o.customer_name}</span>
-                </td>
-                <td>{o.governorate}</td>
-                <td className="adm-total-cell num">{formatPrice(Number(o.total))}</td>
-                <td>
-                  <span className="adm-pill" data-s={o.status}>{isOrderStatus(o.status) ? STATUS_AR[o.status] : o.status}</span>
-                </td>
-                <td>
-                  {o.deposit_status ? (
-                    <span className="adm-pill" data-d={o.deposit_status}>{DEPOSIT_LABEL[o.deposit_status as DepositStatus]}</span>
-                  ) : (
-                    <span className="adm-empty-dash" aria-label="بدون عربون">—</span>
-                  )}
-                </td>
-                <td className="adm-actions-cell">
-                  <Link href={`/admin/orders/${o.id}`} className="adm-view-order-btn">
-                    عرض التفاصيل
-                    <span className="vh"> للطلب {o.number}</span>
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {(orders ?? []).length === 0 && (
-              <tr>
-                <td colSpan={8} className="adm-sub" style={{ textAlign: "center", padding: "32px 16px" }}>
-                  مفيش طلبات مطابقة.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {Number(one(sp.deleted)) > 0 && (
+        <p className="adm-ok" role="status">{Number(one(sp.deleted)) === 1 ? "الطلب اتحذف." : `اتحذف ${one(sp.deleted)} طلب.`}</p>
+      )}
+
+      <OrdersTable rows={(orders ?? []) as OrderRow[]} />
 
       {pages > 1 && (
         <nav className="adm-pager" aria-label="الصفحات">

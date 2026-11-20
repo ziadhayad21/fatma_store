@@ -32,6 +32,10 @@ const BOOTSTRAP = `
     select nullif((nullif(current_setting('request.jwt.claims', true), '')::jsonb) ->> 'sub', '')::uuid
   $$;
   grant execute on function auth.uid() to anon, authenticated, service_role;
+  create function auth.role() returns text language sql stable as $$
+    select nullif((nullif(current_setting('request.jwt.claims', true), '')::jsonb) ->> 'role', '')
+  $$;
+  grant execute on function auth.role() to anon, authenticated, service_role;
 
   create schema storage;
   grant usage on schema storage to anon, authenticated, service_role;
@@ -40,7 +44,8 @@ const BOOTSTRAP = `
     file_size_limit bigint, allowed_mime_types text[]
   );
   create table storage.objects (
-    id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id), name text
+    id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id), name text,
+    metadata jsonb
   );
   alter table storage.objects enable row level security;
   grant all on storage.buckets, storage.objects to anon, authenticated, service_role;
@@ -260,13 +265,12 @@ describe("admins", () => {
     expect((await as("authenticated", ADMIN, "select * from storage.objects where bucket_id = 'designs'")).rows).toHaveLength(1);
   });
 
-  it("update order status (valid values only) but cannot insert or delete orders", async () => {
+  it("update order status (valid values only) but cannot insert orders (deleting: migration …1800)", async () => {
     await setup("select public.create_order($1::jsonb, $2::jsonb)", [JSON.stringify(order()), JSON.stringify([item({ product_id: "", mode: "standard", text: "", font: "" })])]);
     const ok = await as("authenticated", ADMIN, "update public.orders set status = 'prepared' where deposit_status is null");
     expect(ok.affected).toBeGreaterThan(0);
     const bad = await as("authenticated", ADMIN, "update public.orders set status = 'lost'");
     expect(bad.code).toBe("23514");
-    expect((await as("authenticated", ADMIN, "delete from public.orders")).code).toBe("42501");
     expect(
       (await as("authenticated", ADMIN, `insert into public.orders (customer_name, phone, governorate, area, address, subtotal, shipping, total)
        values ('x y', '01012345678', 'القاهرة', 'a', 'abc', 1, 1, 2)`)).code,
@@ -766,5 +770,96 @@ describe("couples products (migration …1600)", () => {
     expect(used.rows.map((r) => r.p).sort()).toEqual(["uploads/2026-11/aaaa.png", "uploads/2026-11/bbbb.png"]);
     expect((await as("anon", null, "select public.design_paths_in_use($1)", [["x"]])).code).toBe("42501");
     expect((await as("authenticated", CUSTOMER, "select public.design_paths_in_use($1)", [["x"]])).code).toBe("42501");
+  });
+});
+
+describe("storage management (migration …1800)", () => {
+  // a plain bag order (no deposit) through create_order, then shaped directly as the owner
+  const bag = async () => (await db.query<{ id: string }>("select p.id from public.products p join public.categories c on c.id = p.category_id where c.slug = 'bags' limit 1")).rows[0].id;
+  async function mkOrder(opts: { status?: string; monthsAgo?: number; proof?: string; designs?: string[]; pieces?: string[] } = {}) {
+    const r = await as<{ create_order: { id: string; number: number } }>("service_role", null, "select public.create_order($1::jsonb, $2::jsonb)", [
+      JSON.stringify(order({ deposit_method: null, payment_proof_path: null, subtotal: 100, total: 140 })),
+      JSON.stringify([item({ product_id: await bag(), mode: "standard", text: null, color: null, unit_price: 100, qty: 1 })]),
+    ], true);
+    if (r.error) throw new Error(r.error);
+    const { id, number } = r.rows[0].create_order;
+    await setup(
+      `update public.orders set status = $2, created_at = now() - make_interval(months => $3::int)
+         ${opts.proof ? ", deposit_status = 'confirmed', deposit_amount = round(total * 0.3, 2), deposit_method = 'instapay', payment_proof_path = $4, deposit_confirmed_at = now(), deposit_confirmed_by = '" + ADMIN + "'" : ""}
+       where id = $1`,
+      opts.proof ? [id, opts.status ?? "new", opts.monthsAgo ?? 0, opts.proof] : [id, opts.status ?? "new", opts.monthsAgo ?? 0],
+    );
+    for (const d of opts.designs ?? []) {
+      await setup("insert into public.order_items (order_id, name_snapshot, mode, design_path, unit_price, qty) values ($1, 'تصميم', 'design', $2, 100, 1)", [id, d]);
+    }
+    if (opts.pieces?.length) {
+      await setup(
+        "insert into public.order_items (order_id, name_snapshot, mode, design_path, unit_price, qty, pieces) values ($1, 'كابلز', 'design', $2, 650, 1, $3::jsonb)",
+        [id, opts.pieces[0], JSON.stringify(opts.pieces.map((p, i) => ({ label: `قطعة ${i + 1}`, design_path: p })))],
+      );
+    }
+    for (const [bucket, path] of [...(opts.proof ? [["payment-proofs", opts.proof]] : []), ...[...(opts.designs ?? []), ...(opts.pieces ?? [])].map((p) => ["designs", p])]) {
+      await setup("insert into storage.objects (bucket_id, name, metadata) values ($1, $2, jsonb_build_object('size', 150000)) on conflict do nothing", [bucket, path]);
+    }
+    return { id, number };
+  }
+  const P = (n: number) => `proofs/2026-01/8888888${n}-8888-4888-8888-888888888888.png`;
+  const D = (n: string) => `uploads/2026-01/${n}.png`;
+
+  it("only admins can delete orders; items go with them, suggestions stay unlinked, numbers are not reused", async () => {
+    const a = await mkOrder({ designs: [D("del-a")] });
+    await setup("insert into public.suggestions (text, order_id) values ('linked to a deleted order', $1)", [a.id]);
+    expect((await as("anon", null, "delete from public.orders where id = $1", [a.id])).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "delete from public.orders where id = $1", [a.id])).affected).toBe(0);
+    expect((await db.query("select 1 from public.orders where id = $1", [a.id])).rows).toHaveLength(1);
+
+    const del = await as("authenticated", ADMIN, "delete from public.orders where id = $1", [a.id], true);
+    expect(del.affected).toBe(1);
+    expect((await db.query("select 1 from public.order_items where order_id = $1", [a.id])).rows).toHaveLength(0);
+    expect((await db.query<{ order_id: string | null }>("select order_id from public.suggestions where text = 'linked to a deleted order'")).rows).toEqual([{ order_id: null }]);
+
+    const b = await mkOrder();
+    expect(Number(b.number)).toBeGreaterThan(Number(a.number)); // the deleted number is never handed out again
+  });
+
+  it("cleanup lists files of old delivered / cancelled orders only, and never a design another order still uses", async () => {
+    await mkOrder({ status: "delivered", monthsAgo: 8, proof: P(1), designs: [D("old-delivered")], pieces: [D("old-piece-1"), D("old-piece-2")] });
+    await mkOrder({ status: "cancelled", monthsAgo: 13, designs: [D("old-cancelled")] });
+    await mkOrder({ status: "delivered", monthsAgo: 2, proof: P(2), designs: [D("recent-delivered")] }); // too recent
+    await mkOrder({ status: "shipped", monthsAgo: 9, designs: [D("old-shipped")] }); // wrong status
+    await mkOrder({ status: "delivered", monthsAgo: 9, designs: [D("shared")] }); // shared with …
+    await mkOrder({ status: "new", monthsAgo: 0, designs: [D("shared")] }); // … a current order
+    const list = async (months: number) =>
+      (await as<{ path: string; bytes: string }>("authenticated", ADMIN, "select path, bytes from public.admin_file_cleanup_candidates($1) order by path", [months])).rows;
+
+    const six = await list(6);
+    expect(six.map((r) => r.path)).toEqual([D("old-cancelled"), D("old-delivered"), D("old-piece-1"), D("old-piece-2"), P(1)].sort());
+    expect(six.every((r) => Number(r.bytes) === 150000)).toBe(true);
+    expect((await list(12)).map((r) => r.path)).toEqual([D("old-cancelled")]);
+    expect((await list(3)).map((r) => r.path)).not.toContain(D("recent-delivered"));
+    for (const months of [3, 6, 12]) expect((await list(months)).map((r) => r.path)).not.toContain(D("shared"));
+
+    // a file that is already gone is not listed again
+    await setup("delete from storage.objects where name = $1", [D("old-cancelled")]);
+    expect((await list(12)).map((r) => r.path)).toEqual([]);
+  });
+
+  it("cleanup and usage are closed to everyone else", async () => {
+    expect((await as("anon", null, "select * from public.admin_file_cleanup_candidates(6)")).code).toBe("42501");
+    expect((await as("authenticated", CUSTOMER, "select * from public.admin_file_cleanup_candidates(6)")).code).toBe("42501");
+    expect((await as("authenticated", ADMIN, "select * from public.admin_file_cleanup_candidates(0)")).error).toBeDefined();
+    expect((await as("authenticated", ADMIN, "select public.admin_storage_usage()")).code).toBe("42501");
+    expect((await as("anon", null, "select public.admin_storage_usage()")).code).toBe("42501");
+    const usage = await as<{ u: { db_bytes: number; storage_bytes: number } }>("service_role", null, "select public.admin_storage_usage() as u");
+    expect(usage.error).toBeUndefined();
+    expect(Number(usage.rows[0].u.db_bytes)).toBeGreaterThan(0);
+    expect(Number(usage.rows[0].u.storage_bytes)).toBeGreaterThan(0);
+  });
+
+  it("admins can mark an order's files as cleaned without touching its deposit details", async () => {
+    const o = await mkOrder({ status: "delivered", monthsAgo: 7, proof: P(3) });
+    const r = await as("authenticated", ADMIN, "update public.orders set files_purged_at = now() where id = $1", [o.id]);
+    expect(r.error).toBeUndefined();
+    expect(r.affected).toBe(1);
   });
 });

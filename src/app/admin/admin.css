@@ -485,6 +485,8 @@
 
 /* Modern Tables */
 .adm-table-wrap {
+  /* also the containing block of the visually-hidden labels inside, so they cannot widen the page */
+  position: relative;
   overflow-x: auto;
   background: #FFFFFF;
   border: 1px solid rgba(23, 35, 61, 0.06);
@@ -2522,5 +2524,199 @@
     bottom: 76px;
     width: max-content;
     max-width: calc(100vw - 32px);
+  }
+}
+/* image fields: files just uploaded, with their stored size */
+.adm-uploaded {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  color: #15803D;
+}
+
+/* ================================================================ storage management */
+/* order page: danger area */
+.adm-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-top: 24px;
+  border-color: #F3D1CE;
+  background: #FFFBFA;
+}
+.adm .adm-danger h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #8A3239;
+}
+.adm-danger .adm-hint {
+  margin: 0;
+  max-width: 520px;
+}
+.adm-purged {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+.adm-od-proof-gone {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+/* orders table: selection + bulk bar */
+.adm .adm-check-cell {
+  width: 44px;
+  padding-inline: 16px 4px;
+}
+.adm-check-cell input {
+  width: 17px;
+  height: 17px;
+  accent-color: #17233D;
+  cursor: pointer;
+}
+.adm-orders-table tr[data-picked] td {
+  background: #F6F3EE;
+}
+.adm-bulk {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  border: 1px solid #E9E0D3;
+  border-radius: 12px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 24px -16px rgba(23, 35, 61, 0.35);
+  font-size: 13.5px;
+}
+.adm-bulk .adm-delete-btn {
+  margin-inline-start: auto;
+}
+
+/* dashboard: storage */
+.adm-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.adm-storage,
+.adm-cleanup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.adm .adm-storage h2,
+.adm .adm-cleanup h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.adm-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adm-usage-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1E293B;
+}
+.adm-usage-top b {
+  font-size: 15px;
+}
+.adm-usage-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #F1ECE4;
+  overflow: hidden;
+}
+.adm-usage-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #17233D;
+}
+.adm-usage-bar[data-level="mid"] i {
+  background: #D97706;
+}
+.adm-usage-bar[data-level="high"] i {
+  background: #DC2626;
+}
+.adm-usage-buckets {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #F1ECE4;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+.adm-usage-buckets li {
+  display: flex;
+  justify-content: space-between;
+}
+.adm-cleanup .adm-hint {
+  margin: -6px 0 0;
+  line-height: 1.7;
+}
+.adm-cleanup-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+}
+.adm-cleanup-row select {
+  width: 130px;
+}
+.adm-cleanup-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 16px;
+  border: 1px solid #F4E1B3;
+  border-radius: 12px;
+  background: #FFF8E7;
+  color: #78350F;
+}
+.adm-cleanup-preview p {
+  margin: 0;
+  font-size: 14px;
+}
+.adm-cleanup-note {
+  margin: 0;
+  font-size: 13.5px;
+  color: #475569;
+}
+.adm-cleanup-done {
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .adm-storage-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

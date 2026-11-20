@@ -6,9 +6,14 @@ import { allow, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { backendConfigured, createServiceClient } from "@/lib/supabase/admin";
 import type { UploadTicket } from "./uploads";
 
+/** Proofs are compressed in the browser (WebP, max 1280px); the server still caps the stored file at 5 MB. */
+const PROOF_MAX_BYTES = 5 * 1024 * 1024;
+const PROOF_TOO_BIG = "صورة إثبات التحويل أكبر من 5 ميجا.";
+
 export async function requestPaymentProofUpload(input: { type: string; size: number }): Promise<UploadTicket> {
   const check = validateDesignFile({ type: String(input?.type), size: Number(input?.size) });
   if (!check.ok) return check;
+  if (Number(input.size) > PROOF_MAX_BYTES) return { ok: false, error: PROOF_TOO_BIG };
   if (!Number.isFinite(input.size) || !backendConfigured()) return { ok: false, error: "رفع إثبات التحويل غير متاح حاليًا." };
   if (!(await allow("upload"))) return { ok: false, error: RATE_LIMITED_MESSAGE };
   const month = new Date().toISOString().slice(0, 7);
@@ -28,6 +33,7 @@ export async function confirmPaymentProofUpload(path: string): Promise<{ ok: tru
   if (error || !data) return { ok: false, error: "إثبات التحويل مش موجود. ارفعه تاني." };
   const check = validateDesignFile({ type: data.type, size: data.size });
   if (!check.ok) return check;
+  if (data.size > PROOF_MAX_BYTES) return { ok: false, error: PROOF_TOO_BIG };
   const bytes = new Uint8Array(await data.slice(0, 12).arrayBuffer());
   const png = bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((b, i) => bytes[i] === b);
   const jpg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;

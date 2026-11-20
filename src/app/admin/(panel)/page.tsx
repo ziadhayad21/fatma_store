@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { CleanupCard } from "@/components/admin/CleanupCard";
+import { StorageUsageCard } from "@/components/admin/StorageUsageCard";
 import { requireAdmin } from "@/lib/admin/auth";
+import { readStorageUsage } from "@/lib/storage";
 import { readDashboardSales } from "@/lib/admin/dashboard-sales";
 import { adminDateKey, formatDay } from "@/lib/admin/format";
 import { formatPrice } from "@/lib/format";
@@ -34,7 +37,23 @@ export default function AdminHome() {
       <Suspense fallback={<p className="adm-card adm-sub" role="status">Loading dashboard…</p>}>
         <DashboardData />
       </Suspense>
+      <Suspense fallback={<p className="adm-card adm-sub" role="status">جاري تحميل المساحة…</p>}>
+        <StorageSection />
+      </Suspense>
     </div>
+  );
+}
+
+/** Storage: usage against the free-plan limits + cleaning old order files. Numbers are read on the server. */
+async function StorageSection() {
+  await requireAdmin();
+  await connection();
+  const usage = await readStorageUsage();
+  return (
+    <section className="adm-storage-grid" aria-label="التخزين">
+      <StorageUsageCard usage={usage} />
+      <CleanupCard />
+    </section>
   );
 }
 
