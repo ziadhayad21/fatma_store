@@ -23,6 +23,7 @@ export function joinSeedProduct(p: ProductRow): Product {
   const has_colors = !!c?.has_colors;
   return {
     ...p,
+    deposit_percent: p.deposit_percent ?? 50,
     category_slug: c?.slug ?? "",
     category_name: c?.name_ar ?? "",
     has_colors,

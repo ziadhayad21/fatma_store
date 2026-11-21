@@ -12,7 +12,7 @@ const products = new Map<string, Product>(seedProducts.map((p) => [p.slug, joinS
 products.set("chef-apron", apron);
 
 const line = (o: Partial<OrderLineInput> = {}): OrderLineInput => ({
-  productId: "chef-apron", mode: "standard", text: null, font: null, designPath: null, color: "black", qty: 1, ...o,
+  productId: "chef-apron", mode: "name", text: "Fatma", font: null, designPath: null, color: "black", qty: 1, ...o,
 });
 const shipping = createShippingModule(async (g) => (g === "القاهرة" ? 40 : null));
 const price = (lines: OrderLineInput[], modules: PricingModule[] = [shipping], governorate = "القاهرة", catalog = products) =>
@@ -25,8 +25,8 @@ const withColors = (prices: Record<string, number>): Map<string, Product> => {
 
 describe("productPrice / fromPrice / variantText", () => {
   it("is one price whatever the ordering option (no printing cost)", async () => {
-    const r = await price([line(), line({ mode: "name", text: "Fatma" }), line({ mode: "design", designPath: "uploads/x.png" })], []);
-    expect(r.lines.map((l) => l.unitPrice)).toEqual([100, 100, 100]);
+    const r = await price([line({ mode: "name", text: "Fatma" }), line({ mode: "name", text: "Ali" })], []);
+    expect(r.lines.map((l) => l.unitPrice)).toEqual([100, 100]);
   });
   it("uses the selected colour's price, with the product discount applied", () => {
     const p = { base_price: 100, discount_percent: 10, has_colors: true, colors: [{ id: "black", price: 100 }, { id: "pink", price: 140 }] };
@@ -68,7 +68,7 @@ describe("priceOrder", () => {
     expect((await price([tampered])).subtotal).toBe(100);
   });
   it("strips personalization data from standard lines", async () => {
-    const r = await price([line({ text: "x", font: "kufi", designPath: "a/b.png" })]);
+    const r = await price([line({ productId: "polka-dot-bag", mode: "standard", text: "x", font: "kufi", designPath: "a/b.png" })]);
     expect(r.lines[0]).toMatchObject({ text: null, font: null, designPath: null });
   });
   it("rejects bad lines", async () => {
@@ -113,7 +113,7 @@ describe("category ordering rules", () => {
       await expect(price([line({ productId: "polka-dot-bag", mode, text: "Bag", font: "kufi", designPath: "x" })], [])).rejects.toBeInstanceOf(PricingError);
     }
     const bag = products.get("polka-dot-bag")!;
-    const result = await price([line({ productId: "polka-dot-bag", color: "pink", text: "ignored" })], []);
+    const result = await price([line({ productId: "polka-dot-bag", mode: "standard", color: "pink", text: "ignored" })], []);
     expect(result.lines[0]).toMatchObject({ color: null, colorName: null, text: null, font: null, designPath: null, unitPrice: bag.base_price });
   });
   it("products without colours still need a font for a name", async () => {
@@ -127,10 +127,10 @@ describe("category ordering rules", () => {
 
 describe("DIY (اصنعها بنفسك) products", () => {
   const diy = new Map<string, Product>([["chef-apron", { ...apron, is_diy: true }]]);
-  it("are sold only with a name or a design, at the colour price, like any product", async () => {
-    await expect(price([line()], [], "القاهرة", diy)).rejects.toBeInstanceOf(PricingError);
-    const r = await price([line({ mode: "name", text: "Fatma" }), line({ mode: "design", designPath: "uploads/x.png", color: "pink" })], [], "القاهرة", diy);
-    expect(r.lines.map((l) => [l.mode, l.color, l.unitPrice])).toEqual([["name", "black", 100], ["design", "pink", 100]]);
+  it("are sold only with a design, at the colour price, like any product", async () => {
+    await expect(price([line({ mode: "name", text: "Fatma" })], [], "القاهرة", diy)).rejects.toBeInstanceOf(PricingError);
+    const r = await price([line({ mode: "design", designPath: "uploads/x.png", color: "pink" })], [], "القاهرة", diy);
+    expect(r.lines.map((l) => [l.mode, l.color, l.unitPrice])).toEqual([["design", "pink", 100]]);
   });
 });
 
@@ -150,7 +150,7 @@ describe("couples (كابلز) products", () => {
     color: "black", text: null, designPath: null, designName: null, ...o,
   });
   const cl = (o: Partial<OrderLineInput> = {}): OrderLineInput =>
-    line({ productId: "couples-apron", color: "black", pieces: [piece(), piece()], ...o });
+    line({ productId: "couples-apron", mode: "name", color: "black", pieces: [piece({ text: "A" }), piece({ text: "B" })], ...o });
   const priceC = (lines: OrderLineInput[], c = catalog) => price(lines, [], "القاهرة", c);
   const fails = async (l: OrderLineInput, c = catalog) => {
     await expect(priceC([l], c)).rejects.toBeInstanceOf(PricingError);
@@ -158,9 +158,9 @@ describe("couples (كابلز) products", () => {
 
   it("has ONE fixed price for the pair, whatever the colours", async () => {
     const r = await priceC([
-      cl(),
-      cl({ pieces: [piece({ color: "black" }), piece({ color: "pink" })] }),
-      cl({ pieces: [piece({ color: "white" }), piece({ color: "pink" })], qty: 2 }),
+      cl({ font: "kufi" }),
+      cl({ font: "kufi", pieces: [piece({ color: "black", text: "A" }), piece({ color: "pink", text: "B" })] }),
+      cl({ font: "kufi", pieces: [piece({ color: "white", text: "A" }), piece({ color: "pink", text: "B" })], qty: 2 }),
     ]);
     expect(r.lines.map((l) => l.unitPrice)).toEqual([650, 650, 650]);
     expect(r.lines.map((l) => l.lineTotal)).toEqual([650, 650, 1300]);
@@ -171,7 +171,7 @@ describe("couples (كابلز) products", () => {
 
   it("applies the product discount to the fixed price", async () => {
     const discounted = new Map([["couples-apron", { ...couples, discount_percent: 10 }]]);
-    const r = await priceC([cl({ pieces: [piece(), piece({ color: "pink" })] })], discounted);
+    const r = await priceC([cl({ font: "kufi", pieces: [piece({ text: "A" }), piece({ color: "pink", text: "B" })] })], discounted);
     expect(r.lines[0]).toMatchObject({ unitPrice: 585, originalUnitPrice: 650, discountPercent: 10 });
   });
 
@@ -193,9 +193,8 @@ describe("couples (كابلز) products", () => {
     expect(r.lines[0].font).toBeNull();
   });
 
-  it("standard mode drops names and designs", async () => {
-    const r = await priceC([cl({ pieces: [piece({ text: "x", designPath: "uploads/a.png" }), piece()] })]);
-    expect(r.lines[0].pieces!.map((p) => [p.text, p.designPath])).toEqual([[null, null], [null, null]]);
+  it("rejects standard mode for couples", async () => {
+    await fails(cl({ mode: "standard" }));
   });
 
   it("rejects incomplete or invalid pairs", async () => {

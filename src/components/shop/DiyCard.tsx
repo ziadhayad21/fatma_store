@@ -20,7 +20,7 @@ export function DiyCard({ product: p, className }: { product: Product; className
         </div>
         <div className="diy-body">
           <h2 className="diy-title">{p.name_ar}</h2>
-          <p className="diy-line">ارفع تصميمك واكتب الاسم اللي تحبه</p>
+          <p className="diy-line">أضف تصميمك الخاص على المنتج</p>
           <div className="diy-price">
             <PriceDisplay {...price} from={price.from || p.has_colors} showBadge={false} />
           </div>

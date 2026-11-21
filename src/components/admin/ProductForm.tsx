@@ -23,6 +23,7 @@ export type ProductFormValues = {
   care_ar: string;
   base_price: string;
   discount_percent: string;
+  deposit_percent?: string;
   sort: string;
   is_active: boolean;
   /** "اصنعها بنفسك": no "as is" option, shown first in its collection */
@@ -91,6 +92,7 @@ export function ProductForm({
   const [colors, setColors] = useState(v.colors);
   const [discountEnabled, setDiscountEnabled] = useState(v.discount_percent !== "");
   const [discount, setDiscount] = useState(v.discount_percent);
+  const [depositPercent, setDepositPercent] = useState(v.deposit_percent || "50");
   const [images, setImages] = useState(v.images);
   const [active, setActive] = useState(v.is_active);
 
@@ -344,6 +346,28 @@ export function ProductForm({
                 </div>
               )}
             </div>
+
+            {category?.slug !== "bags" && (
+              <div className="adm-f" data-field="deposit_percent" style={{ marginTop: 20 }}>
+                <label htmlFor="deposit_percent">نسبة العربون (%)</label>
+                <div className="adm-money adm-pct">
+                  <input
+                    id="deposit_percent"
+                    name="deposit_percent"
+                    type="number"
+                    min={1}
+                    max={100}
+                    dir="ltr"
+                    value={depositPercent}
+                    onChange={(e) => setDepositPercent(e.target.value)}
+                    placeholder="50"
+                    aria-invalid={!!errors.deposit_percent}
+                  />
+                </div>
+                <span className="adm-hint">نسبة العربون المطلوب من العميل عند الطلب (افتراضي 50%، متاح من 1% إلى 100%).</span>
+                {err("deposit_percent")}
+              </div>
+            )}
           </section>
 
           {/* ------------------------------------------------ 4. images */}

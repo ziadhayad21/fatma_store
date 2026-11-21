@@ -36,7 +36,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   const { supabase } = await requireAdmin();
 
   const { data } = await supabase.from("orders")
-    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, files_purged_at, order_items(*)")
+    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, files_purged_at, deposit_percent, order_items(*)")
     .eq("id", id)
     .maybeSingle();
   if (!data) notFound();
@@ -254,7 +254,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
                 <dt className="total">الإجمالي</dt><dd className="total">{formatPrice(total)}</dd>
                 {depositStatus && (
                   <>
-                    <dt>العربون (30%)</dt>
+                    <dt>العربون ({data.deposit_percent ?? 50}%)</dt>
                     <dd>{formatPrice(deposit)}</dd>
                     <dt>حالة العربون</dt>
                     <dd><span className="adm-pill" data-d={depositStatus}>{DEPOSIT_LABEL[depositStatus]}</span></dd>

@@ -8,9 +8,10 @@ type JoinedColor = {
   color: { id: string; name_ar: string; hex: string; sort: number; is_active: boolean } | null;
 };
 
-export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "images"> & {
+export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "deposit_percent" | "images"> & {
   base_price: number | string;
   discount_percent?: number | string | null;
+  deposit_percent?: number | string | null;
   images: ProductImage[] | null;
   category: { slug: string; name_ar: string; is_active: boolean; has_colors?: boolean | null } | null;
   product_colors?: JoinedColor[] | null;
@@ -37,6 +38,7 @@ export function toProduct(r: JoinedRow): Product {
     ...row,
     base_price: Number(r.base_price),
     discount_percent: r.discount_percent == null ? null : Number(r.discount_percent),
+    deposit_percent: r.deposit_percent == null ? 50 : Number(r.deposit_percent),
     images: Array.isArray(r.images) ? r.images : [],
     category_slug: category?.slug ?? "",
     category_name: category?.name_ar ?? "",

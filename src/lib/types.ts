@@ -48,6 +48,7 @@ export type ProductRow = {
   care_ar: string;
   base_price: number;
   discount_percent?: number | null;
+  deposit_percent?: number | null;
   images: ProductImage[];
   is_active: boolean;
   /** "اصنعها بنفسك": sold only with the customer's name or design (no "as is" option) */

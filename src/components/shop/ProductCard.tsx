@@ -2,16 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Tile } from "@/components/ui/Tile";
 import { fromPrice } from "@/lib/pricing/discount";
 import { productRules } from "@/lib/product-rules";
 import type { Product } from "@/lib/types";
-import { useCart } from "@/store/cart";
-import { useUI } from "@/store/ui";
 import { useWishlist } from "@/store/wishlist";
 import { DiyCard } from "./DiyCard";
 import { PriceDisplay } from "./PriceDisplay";
+import { ProductModal } from "./ProductModal";
 
 type Props = {
   product: Product;
@@ -33,15 +33,11 @@ export function ProductCard({
 }: Props) {
   const wished = useWishlist((s) => s.slugs.includes(p.slug));
   const toggleWish = useWishlist((s) => s.toggle);
-  const add = useCart((s) => s.add);
-  const openCart = useUI((s) => s.openCart);
+  const [modalOpen, setModalOpen] = useState(false);
   const [main] = p.images;
   const href = `/products/${p.slug}`;
   const price = fromPrice(p);
   const rules = productRules(p);
-  // quick add uses the first available colour; a colour product with none left opens its page instead
-  const quickAddColor = rules.colors ? p.colors[0]?.id ?? null : null;
-  const canQuickAdd = !rules.colors || quickAddColor !== null;
 
   // "اصنعها بنفسك": its own card (outline illustration, no quick add: it needs a name or a design)
   if (p.is_diy && !rules.standard) return <DiyCard product={p} className={className} />;
@@ -69,21 +65,14 @@ export function ProductCard({
           >
             <Icon name="heart" size={16} />
           </button>
-          {canQuickAdd && (
-            <button
-              type="button"
-              className={`${listingButton} right-2 bottom-2 hover:bg-[#292524] hover:text-white lg:right-3 lg:bottom-3`}
-              aria-label="أضف للسلة"
-              onClick={() => {
-                // couples: both pieces "as is" in the first available colour
-                const pieces = rules.couples ? Array.from({ length: p.pieces_count ?? 2 }, () => ({ color: quickAddColor, text: null, designPath: null, designName: null })) : null;
-                add({ productId: p.slug, mode: "standard", text: null, font: null, designPath: null, designName: null, color: quickAddColor, pieces });
-                openCart();
-              }}
-            >
-              <Icon name="plus" size={16} />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`${listingButton} right-2 bottom-2 hover:bg-[#292524] hover:text-white lg:right-3 lg:bottom-3`}
+            aria-label="تحديد الخيارات وإضافة للسلة"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={16} />
+          </button>
         </div>
         {(rules.couples || rules.customization) && <div className="mt-2.5 flex flex-wrap gap-1.5 lg:mt-3">
           {rules.couples && <span className="inline-block rounded-md bg-[#F6D6DC] px-2 py-0.5 text-[10px] font-semibold text-[#8E1B2C] lg:text-[11px]">كابلز</span>}
@@ -97,6 +86,8 @@ export function ProductCard({
           <span className="size-2 rounded-full border border-current" aria-hidden="true" />
           أضف اسمك
         </span>}
+
+        <ProductModal product={p} open={modalOpen} onClose={() => setModalOpen(false)} />
       </article>
     );
   }
@@ -135,6 +126,8 @@ export function ProductCard({
       >
         <Icon name="heart" size={16} />
       </button>
+
+      <ProductModal product={p} open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

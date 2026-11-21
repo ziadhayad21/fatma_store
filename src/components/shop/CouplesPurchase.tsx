@@ -20,11 +20,10 @@ import { PriceDisplay } from "./PriceDisplay";
 import { ProductInfo } from "./ProductInfo";
 import { isLight } from "./swatch";
 
-// Same three options, worded for two. None of them changes the price.
+// Only two options for couples: name and design (standard / "زي ما هو" is removed)
 const WAYS: { id: OrderMode; title: string; sub: string }[] = [
-  { id: "standard", title: "زي ما هم", sub: "المنتج بتصميمه الأصلي، لكل قطعة لونها" },
-  { id: "name", title: "بأساميكم", sub: "اسم على كل قطعة، بنفس الخط" },
-  { id: "design", title: "بتصميمكم", sub: "تصميم لكل قطعة: لوجو، رسمة أو صورة" },
+  { id: "name", title: "اكتب اسمك عليه", sub: "اسم على كل قطعة، بنفس الخط" },
+  { id: "design", title: "ارفع تصميمك", sub: "تصميم لكل قطعة: لوجو، رسمة أو صورة" },
 ];
 
 type PieceState = { color: string | null; name: string; design: DesignState };
@@ -40,7 +39,7 @@ const fromLine = (p: LinePiece | undefined, fallbackColor: string | null): Piece
  * (colours never change it), one shared font, one shared notes field. Editing a cart line works as for
  * normal products (`initial`).
  */
-export function CouplesForm({ product: p, initial }: { product: Product; initial: CartLine | null }) {
+export function CouplesForm({ product: p, initial, onSuccess }: { product: Product; initial: CartLine | null; onSuccess?: () => void }) {
   const router = useRouter();
   const uid = useId();
   const editing = initial !== null;
@@ -49,10 +48,11 @@ export function CouplesForm({ product: p, initial }: { product: Product; initial
   const firstColor = rules.colors ? (p.colors[0]?.id ?? null) : null;
   const validColor = (c: string | null | undefined) => (rules.colors ? (findColor(p, c)?.id ?? firstColor) : null);
 
-  const defaultMode: OrderMode = rules.standard ? "standard" : "design";
-  const [mode, setMode] = useState<OrderMode>(
-    initial?.mode && rules.customization && (rules.standard || initial.mode !== "standard") ? initial.mode : rules.customization ? defaultMode : "standard",
-  );
+  const defaultMode: OrderMode = "name";
+  const [mode, setMode] = useState<OrderMode>(() => {
+    if (initial?.mode === "design" || initial?.mode === "name") return initial.mode;
+    return defaultMode;
+  });
   const [pieces, setPieces] = useState<PieceState[]>(() =>
     labels.map((_, i) => {
       const s = fromLine(initial?.pieces?.[i], firstColor);
@@ -122,9 +122,11 @@ export function CouplesForm({ product: p, initial }: { product: Product; initial
       for (const path of lineDesignPaths(initial)) {
         if (!kept.has(path) && !designInUse(path)) void designUploader.remove(path).catch(() => {});
       }
-      router.push("/cart");
+      if (onSuccess) onSuccess();
+      else router.push("/cart");
     } else {
       add(line);
+      if (onSuccess) onSuccess();
       openCart();
     }
   }
@@ -156,123 +158,125 @@ export function CouplesForm({ product: p, initial }: { product: Product; initial
         <div className="rise d2" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <span className="lbl" id={`${uid}-way`}>طريقة الطلب</span>
           <div role="group" aria-labelledby={`${uid}-way`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {WAYS.filter((w) => rules.standard || w.id !== "standard").map((w) => {
+            {WAYS.map((w) => {
               const on = mode === w.id;
               return (
-                <button key={w.id} type="button" className={`opt${on ? " on" : ""}`} aria-pressed={on} onClick={() => setMode(w.id)}>
-                  <span className="rd" aria-hidden="true"><i /></span>
-                  <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-                    <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
-                    <span className="muted" style={{ fontSize: 13 }}>{w.sub}</span>
-                  </span>
-                </button>
+                <div key={w.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button type="button" className={`opt${on ? " on" : ""}`} aria-pressed={on} onClick={() => setMode(w.id)}>
+                    <span className="rd" aria-hidden="true"><i /></span>
+                    <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <span style={{ fontSize: 15, fontWeight: 500 }}>{w.title}</span>
+                      <span className="muted" style={{ fontSize: 13 }}>{w.sub}</span>
+                    </span>
+                  </button>
+
+                  {on && (
+                    <div className="cpl rise d2" style={{ marginTop: 0 }}>
+                      {rules.colors && p.colors.length > 1 && (
+                        <label className="cpl-same">
+                          <input type="checkbox" checked={sameColor} onChange={(e) => toggleSame(e.target.checked)} />
+                          نفس اللون للاتنين
+                        </label>
+                      )}
+                      <div className="cpl-pieces">
+                        {pieces.map((x, i) => {
+                          const headId = `${uid}-p${i}`;
+                          const nameErr = mode === "name" && x.name.trim() && !validateName(x.name).ok ? (validateName(x.name) as { error: string }).error : "";
+                          return (
+                            <section key={i} className="cpl-piece" aria-labelledby={headId}>
+                              <h2 className="cpl-piece-title" id={headId}>
+                                {labels[i]}
+                                {rules.colors && x.color && <span className="muted"> · {findColor(p, x.color)?.name_ar}</span>}
+                              </h2>
+
+                              {rules.colors && p.colors.length > 0 && (
+                                <div className="color-swatches" role="group" aria-label={`لون ${labels[i]}`}>
+                                  {p.colors.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      className={`color-swatch${isLight(c.hex) ? " color-swatch--light" : ""}${x.color === c.id ? " on" : ""}`}
+                                      style={{ background: c.hex }}
+                                      aria-pressed={x.color === c.id}
+                                      aria-label={`${c.name_ar} — ${labels[i]}`}
+                                      title={c.name_ar}
+                                      onClick={() => pickColor(i, c.id)}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+
+                              {mode === "name" && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                  <label htmlFor={`${headId}-n`} className="lbl">
+                                    <span>الاسم أو الكلمة</span>
+                                    <span className="muted" aria-live="polite">{[...x.name].length}/{NAME_MAX}</span>
+                                  </label>
+                                  <input
+                                    id={`${headId}-n`}
+                                    className="inp"
+                                    type="text"
+                                    autoComplete="off"
+                                    placeholder={i === 0 ? "مثلاً: Beso kitchen" : "مثلاً: فاطمة"}
+                                    value={x.name}
+                                    onChange={(e) => patch(i, { name: [...e.target.value].slice(0, NAME_MAX).join("") })}
+                                    aria-invalid={nameErr ? true : undefined}
+                                    aria-describedby={nameErr ? `${headId}-e` : undefined}
+                                    style={{ width: "100%", flex: "none" }}
+                                  />
+                                  {nameErr && <span className="err" id={`${headId}-e`}>{nameErr}</span>}
+                                </div>
+                              )}
+
+                              {mode === "design" && <DesignPanel value={x.design} onChange={(d) => patch(i, { design: d })} />}
+                            </section>
+                          );
+                        })}
+                      </div>
+
+                      {mode === "name" && (
+                        <div className="panel" style={{ marginTop: 0 }}>
+                          <span className="lbl" id={`${uid}-font`}>الخط (للاسمين)</span>
+                          <div className="fonts" role="group" aria-labelledby={`${uid}-font`}>
+                            {nameFonts.map((f) => (
+                              <button
+                                key={f.id}
+                                type="button"
+                                className={`fo${f.id === font ? " on" : ""}`}
+                                aria-pressed={f.id === font}
+                                aria-label={`خط ${f.label}`}
+                                onClick={() => setFont(f.id)}
+                              >
+                                <span className="s" style={{ fontFamily: fontCss(f.id) }}>{sample}</span>
+                                <span className="n">{f.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="panel" style={{ marginTop: 0 }}>
+                        <label htmlFor={`${uid}-notes`} className="lbl">
+                          <span>ملاحظات التخصيص (اختياري)</span>
+                          <span className="muted" aria-live="polite">{[...notes].length}/500</span>
+                        </label>
+                        <textarea
+                          id={`${uid}-notes`}
+                          className="inp cpl-notes"
+                          maxLength={500}
+                          placeholder="مثلاً: الاسم على الجيب، أو حجم التصميم، أو أي تعليمات خاصة."
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
       )}
-
-      <div className="cpl rise d2">
-        {rules.colors && p.colors.length > 1 && (
-          <label className="cpl-same">
-            <input type="checkbox" checked={sameColor} onChange={(e) => toggleSame(e.target.checked)} />
-            نفس اللون للاتنين
-          </label>
-        )}
-        <div className="cpl-pieces">
-          {pieces.map((x, i) => {
-            const headId = `${uid}-p${i}`;
-            const nameErr = mode === "name" && x.name.trim() && !validateName(x.name).ok ? (validateName(x.name) as { error: string }).error : "";
-            return (
-              <section key={i} className="cpl-piece" aria-labelledby={headId}>
-                <h2 className="cpl-piece-title" id={headId}>
-                  {labels[i]}
-                  {rules.colors && x.color && <span className="muted"> · {findColor(p, x.color)?.name_ar}</span>}
-                </h2>
-
-                {rules.colors && p.colors.length > 0 && (
-                  <div className="color-swatches" role="group" aria-label={`لون ${labels[i]}`}>
-                    {p.colors.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={`color-swatch${isLight(c.hex) ? " color-swatch--light" : ""}${x.color === c.id ? " on" : ""}`}
-                        style={{ background: c.hex }}
-                        aria-pressed={x.color === c.id}
-                        aria-label={`${c.name_ar} — ${labels[i]}`}
-                        title={c.name_ar}
-                        onClick={() => pickColor(i, c.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {mode === "name" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <label htmlFor={`${headId}-n`} className="lbl">
-                      <span>الاسم</span>
-                      <span className="muted" aria-live="polite">{[...x.name].length}/{NAME_MAX}</span>
-                    </label>
-                    <input
-                      id={`${headId}-n`}
-                      className="inp"
-                      type="text"
-                      autoComplete="off"
-                      placeholder={i === 0 ? "مثلاً: Beso kitchen" : "مثلاً: فاطمة"}
-                      value={x.name}
-                      onChange={(e) => patch(i, { name: [...e.target.value].slice(0, NAME_MAX).join("") })}
-                      aria-invalid={nameErr ? true : undefined}
-                      aria-describedby={nameErr ? `${headId}-e` : undefined}
-                      style={{ width: "100%", flex: "none" }}
-                    />
-                    {nameErr && <span className="err" id={`${headId}-e`}>{nameErr}</span>}
-                  </div>
-                )}
-
-                {mode === "design" && <DesignPanel value={x.design} onChange={(d) => patch(i, { design: d })} />}
-              </section>
-            );
-          })}
-        </div>
-
-        {mode === "name" && (
-          <div className="panel" style={{ marginTop: 0 }}>
-            <span className="lbl" id={`${uid}-font`}>الخط (للاسمين)</span>
-            <div className="fonts" role="group" aria-labelledby={`${uid}-font`}>
-              {nameFonts.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  className={`fo${f.id === font ? " on" : ""}`}
-                  aria-pressed={f.id === font}
-                  aria-label={`خط ${f.label}`}
-                  onClick={() => setFont(f.id)}
-                >
-                  <span className="s" style={{ fontFamily: fontCss(f.id) }}>{sample}</span>
-                  <span className="n">{f.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {mode !== "standard" && (
-          <div className="panel" style={{ marginTop: 0 }}>
-            <label htmlFor={`${uid}-notes`} className="lbl">
-              <span>ملاحظات التخصيص (اختياري)</span>
-              <span className="muted" aria-live="polite">{[...notes].length}/500</span>
-            </label>
-            <textarea
-              id={`${uid}-notes`}
-              className="inp cpl-notes"
-              maxLength={500}
-              placeholder="مثلاً: الاسم على الجيب، أو حجم التصميم، أو أي تعليمات خاصة."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        )}
-      </div>
 
       <div className="rise d3" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", gap: 10 }}>

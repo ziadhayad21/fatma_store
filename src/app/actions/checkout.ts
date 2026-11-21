@@ -29,7 +29,7 @@ export type PlaceOrderInput = {
 };
 
 export type PlaceOrderResult =
-  | { ok: true; orderId: string; number: number; /** the order needs a deposit (30%) */ deposit: boolean }
+  | { ok: true; orderId: string; number: number; /** the order needs a deposit */ deposit: boolean }
   | { ok: false; error: string; fieldErrors?: CustomerErrors };
 
 const FONTS = new Set(["ruqaa", "kufi", "naskh", "bold", "modern"]);
@@ -142,7 +142,11 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     return { ok: false, error: "حصلت مشكلة. جرّب تاني." };
   }
 
-  const requiresDeposit = priced.lines.some((l) => productRules(products.get(l.productId)!).deposit);
+  const depositLines = priced.lines.filter((l) => productRules(products.get(l.productId)!).deposit);
+  const requiresDeposit = depositLines.length > 0;
+  const appliedDepositPercent = requiresDeposit
+    ? Math.max(...depositLines.map((l) => products.get(l.productId)?.deposit_percent ?? 50))
+    : 50;
   const hasCustomization = priced.lines.some((l) => productRules(products.get(l.productId)!).customization);
   const customizationNotes = hasCustomization && typeof input.customizationNotes === "string" && input.customizationNotes.trim()
     ? input.customizationNotes.trim()
@@ -173,10 +177,11 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       shipping: priced.shipping,
       total: priced.total,
       customization_notes: customizationNotes,
-      deposit_amount: requiresDeposit ? depositAmount(priced.total) : 0,
+      deposit_amount: requiresDeposit ? depositAmount(priced.total, appliedDepositPercent) : 0,
       deposit_status: requiresDeposit ? "submitted" : null,
       deposit_method: requiresDeposit ? input.depositMethod : null,
       payment_proof_path: proofPath,
+      deposit_percent: requiresDeposit ? appliedDepositPercent : null,
     },
     p_items: priced.lines.map((l) => ({
       product_id: products.get(l.productId)!.id,

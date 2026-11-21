@@ -64,8 +64,12 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const rate = rates.find((r) => r.governorate === form.governorate);
   const shippingKnown = !!rate && rate.fee !== null;
   const total = roundMoney(itemsTotal + (shippingKnown ? rate!.fee! : 0));
-  const requiresDeposit = lines.some((l) => productRules(products.get(l.productId)!).deposit);
-  const deposit = requiresDeposit ? depositAmount(total) : 0;
+  const depositLines = lines.filter((l) => productRules(products.get(l.productId)!).deposit);
+  const requiresDeposit = depositLines.length > 0;
+  const appliedDepositPercent = requiresDeposit
+    ? Math.max(...depositLines.map((l) => products.get(l.productId)?.deposit_percent ?? 50))
+    : 50;
+  const deposit = requiresDeposit ? depositAmount(total, appliedDepositPercent) : 0;
   const shippingBlocked = !!form.governorate && !shippingKnown;
 
   const set = (k: keyof CustomerInput) => (v: string) => {
@@ -257,7 +261,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                     <span className="rd" aria-hidden="true" style={{ borderColor: "var(--ink)" }}><i style={{ transform: "scale(1)" }} /></span>
                     <span style={{ display: "flex", flexDirection: "column" }}>
                       <span style={{ fontSize: 15, fontWeight: 500 }}>{m.label}</span>
-                      <span className="muted" style={{ fontSize: 13 }}>{requiresDeposit ? "العربون 30% مقدمًا عبر InstaPay أو Wallet، والباقي عند الاستلام." : m.description}</span>
+                      <span className="muted" style={{ fontSize: 13 }}>{requiresDeposit ? `العربون ${appliedDepositPercent}% مقدمًا عبر InstaPay أو Wallet، والباقي عند الاستلام.` : m.description}</span>
                     </span>
                   </label>
                 ))}
@@ -265,10 +269,10 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
             </fieldset>
 
             {requiresDeposit && <fieldset className="co-sec" disabled={pending}>
-              <legend>العربون المطلوب (30%)</legend>
+              <legend>العربون المطلوب ({appliedDepositPercent}%)</legend>
               <p>حوّل العربون عبر InstaPay أو Wallet إلى <bdi dir="ltr">{DEPOSIT_NUMBER}</bdi>.</p>
-              <p>العربون 30% من إجمالي الطلب بعد الخصم شامل الشحن. الطلب لا يتأكد إلا بعد مراجعة الإدارة للتحويل.</p>
-              <p>الإجمالي: {shippingKnown ? formatPrice(total) : "—"}<br />العربون المطلوب: {shippingKnown ? formatPrice(deposit) : "—"}<br />المتبقي بعد تأكيد العربون: {shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</p>
+              <p>العربون {appliedDepositPercent}% من إجمالي الطلب بعد الخصم شامل الشحن. الطلب لا يتأكد إلا بعد مراجعة الإدارة للتحويل.</p>
+              <p>الإجمالي: {shippingKnown ? formatPrice(total) : "—"}<br />العربون المطلوب ({appliedDepositPercent}%): {shippingKnown ? formatPrice(deposit) : "—"}<br />المتبقي بعد تأكيد العربون: {shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</p>
               <label htmlFor="deposit-method">طريقة تحويل العربون</label>
               <select id="deposit-method" className="sel" value={depositMethod} onChange={(e) => setDepositMethod(e.target.value)}><option value="instapay">InstaPay</option><option value="wallet">Wallet</option></select>
               <PaymentProof onChange={setProofPath} onBusy={setProofBusy} />
@@ -318,7 +322,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
               <span>الإجمالي</span>
               <span>{shippingKnown ? formatPrice(total) : "—"}</span>
             </div>
-            {requiresDeposit && <><div className="sl"><span>العربون (30%)</span><span>{shippingKnown ? formatPrice(deposit) : "—"}</span></div><div className="sl"><span>المتبقي بعد تأكيد العربون</span><span>{shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</span></div></>}
+            {requiresDeposit && <><div className="sl"><span>العربون ({appliedDepositPercent}%)</span><span>{shippingKnown ? formatPrice(deposit) : "—"}</span></div><div className="sl"><span>المتبقي بعد تأكيد العربون</span><span>{shippingKnown ? formatPrice(roundMoney(total - deposit)) : "—"}</span></div></>}
             <span className="muted" style={{ fontSize: 12 }}>الإجمالي النهائي بيتحسب على السيرفر وقت تأكيد الطلب.</span>
           </aside>
         </div>

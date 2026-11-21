@@ -39,6 +39,7 @@ type OrderRow = {
   notes: string | null;
   customization_notes: string | null;
   deposit_amount: number;
+  deposit_percent?: number | null;
   deposit_status: DepositStatus | null;
   payment_method: string;
   status: string;
@@ -180,7 +181,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
         </div>
 
         {order.deposit_status && <div className="sum" style={{ position: "static", marginTop: 24 }}>
-          <div className="sl"><span>العربون المطلوب (30%)</span><span>{formatPrice(Number(order.deposit_amount))}</span></div>
+          <div className="sl"><span>العربون المطلوب ({order.deposit_percent ?? 50}%)</span><span>{formatPrice(Number(order.deposit_amount))}</span></div>
           <div className="sl"><span>العربون المدفوع والمؤكد</span><span>{formatPrice(order.deposit_status === "confirmed" ? Number(order.deposit_amount) : 0)}</span></div>
           <div className="sl"><span>المتبقي بعد تأكيد العربون</span><span>{formatPrice(roundMoney(Number(order.total) - Number(order.deposit_amount)))}</span></div>
         </div>}

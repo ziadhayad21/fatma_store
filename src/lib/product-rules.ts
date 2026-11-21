@@ -16,13 +16,32 @@ export function productRules(product: Pick<Product, "category_slug"> & { has_col
   const colors = !!product.has_colors;
   const customization = product.category_slug !== "bags";
   const couples = (product.pieces_count ?? 1) > 1;
-  // colour products print the name in the chosen colour: no font choice — except couples products,
-  // where both names share ONE font the customer picks.
-  // DIY ("اصنعها بنفسك") products are sold only with a name or a design: no "as is" option.
-  return { colors, customization, standard: !(customization && product.is_diy), deposit: textile, font: !colors || couples, couples };
+  const isDiy = !!product.is_diy;
+  // bags: standard only
+  // couples: name ("اكتب اسمك عليه") and design ("ارفع تصميمك")
+  // normal textiles (single aprons/towels): name only ("اكتب اسمك عليه")
+  // DIY textiles (is_diy): design only ("أضف تصميمك")
+  const allowedModes: readonly ("standard" | "name" | "design")[] = !customization
+    ? ["standard"]
+    : couples
+      ? ["name", "design"]
+      : isDiy
+        ? ["design"]
+        : ["name"];
+  return {
+    colors,
+    customization,
+    standard: !customization,
+    deposit: textile,
+    font: !colors || couples,
+    couples,
+    isDiy,
+    allowedModes,
+  };
 }
 export const DEPOSIT_NUMBER = "01155907797";
-export const depositAmount = (total: number) => roundMoney(total * 0.3);
+export const DEFAULT_DEPOSIT_PERCENT = 50;
+export const depositAmount = (total: number, percent = DEFAULT_DEPOSIT_PERCENT) => roundMoney(total * (percent / 100));
 export type DepositStatus = "pending" | "submitted" | "confirmed";
 export const DEPOSIT_LABEL: Record<DepositStatus, string> = {
   pending: "في انتظار العربون",

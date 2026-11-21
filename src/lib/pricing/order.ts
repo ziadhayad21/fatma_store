@@ -114,14 +114,16 @@ export function cleanLine(line: OrderLineInput, product: Product | undefined): O
   }
   const rules = productRules(product);
   if (line.mode !== "standard" && line.mode !== "name" && line.mode !== "design") throw new PricingError("طريقة طلب غير معروفة", "bad_line");
+  if (!rules.allowedModes.includes(line.mode)) {
+    if (!rules.customization) throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
+    if (rules.isDiy) throw new PricingError("المنتج ده متاح لرفع التصميم فقط", "bad_line");
+    if (rules.couples) throw new PricingError("منتجات الكابلز متاحة بالاسم أو التصميم فقط", "bad_line");
+    throw new PricingError("المنتج ده متاح لكتابة الاسم فقط", "bad_line");
+  }
   if (isCouples(product)) {
-    if (!rules.customization && line.mode !== "standard") throw new PricingError("المنتج ده متاح بدون تخصيص فقط", "bad_line");
-    if (!rules.standard && line.mode === "standard") throw new PricingError("اكتبوا أساميكم أو ارفعوا تصميمكم للمنتج ده", "bad_line");
     return cleanCouplesLine(line, product, rules);
   }
   line = { ...line, pieces: null };
-  if (!rules.customization && line.mode !== "standard") throw new PricingError("الشنط متاحة بدون تخصيص فقط", "bad_line");
-  if (!rules.standard && line.mode === "standard") throw new PricingError("اكتب اسمك أو ارفع تصميمك للمنتج ده", "bad_line");
   // the colour must be one the product is currently sold in (its price comes from that colour)
   if (rules.colors && !(isProductColor(line.color) && findColor(product, line.color))) {
     throw new PricingError("اختار اللون", "bad_line");

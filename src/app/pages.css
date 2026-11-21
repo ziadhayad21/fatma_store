@@ -3059,3 +3059,93 @@
   margin-top: 2px;
   font-size: 12.5px;
 }
+
+/* ---------------------------------------------------------------- product quick add modal */
+.prod-modal-dialog {
+  width: min(840px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: var(--page);
+  color: var(--ink);
+  box-shadow: 0 24px 64px -16px rgba(20, 20, 20, 0.35);
+  overflow: auto;
+}
+.prod-modal-dialog[open] {
+  animation: op-in 0.28s var(--ease) both;
+}
+.prod-modal-dialog::backdrop {
+  background: rgba(20, 20, 20, 0.45);
+  animation: op-fade 0.28s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prod-modal-dialog[open],
+  .prod-modal-dialog::backdrop { animation: none; }
+}
+.prod-modal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 32px;
+}
+.prod-modal-close {
+  position: absolute;
+  top: 16px;
+  inset-inline-start: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface, #f5f3ef);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.prod-modal-close:hover {
+  background: #eae6df;
+  transform: scale(1.05);
+}
+.prod-modal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 32px;
+  align-items: start;
+}
+.prod-modal-gallery {
+  position: sticky;
+  top: 0;
+}
+.prod-modal-gallery .gal {
+  position: static;
+  top: auto;
+}
+.prod-modal-purchase {
+  min-width: 0;
+}
+.prod-modal-purchase .info {
+  margin-top: 0;
+}
+@media (max-width: 768px) {
+  .prod-modal-dialog {
+    width: min(520px, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+    border-radius: 16px;
+  }
+  .prod-modal-card {
+    padding: 20px 16px 24px;
+  }
+  .prod-modal-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .prod-modal-gallery {
+    position: static;
+  }
+}
+

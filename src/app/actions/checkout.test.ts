@@ -80,7 +80,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 const { placeOrder } = await import("./checkout");
 
 const customer = { name: "فاطمة أحمد", phone: "01012345678", governorate: "القاهرة", area: "مدينة نصر", address: "12 شارع التسعين", notes: "" };
-const std = (o = {}) => ({ productId: "chef-apron", mode: "standard", text: null, font: null, designPath: null, qty: 1, color: "black", ...o });
+const std = (o = {}) => ({ productId: "chef-apron", mode: "name", text: "فاطمة", font: null, designPath: null, qty: 1, color: "black", ...o });
 const place = (o: Record<string, unknown> = {}) =>
   placeOrder({ customer, lines: [std()], paymentMethod: "cod", depositMethod: "instapay", paymentProofPath: PROOF, ...o } as Parameters<typeof placeOrder>[0]);
 
@@ -97,7 +97,7 @@ describe("placeOrder", () => {
       lines: [
         std({ qty: 2, price: 1, unitPrice: 1 }), // tampered prices are ignored (never read)
         std({ mode: "name", text: "  Fatma ", font: "ruqaa", qty: 3 }),
-        std({ mode: "design", designPath: UP }),
+        std({ mode: "name", text: "Ali" }),
       ],
     });
     expect(r).toMatchObject({ ok: true, number: 1001 });
@@ -109,7 +109,7 @@ describe("placeOrder", () => {
     expect(p_order).toMatchObject({ subtotal, shipping: 40, total: subtotal + 40, payment_method: "cod", phone: "01012345678" });
     expect(p_items).toHaveLength(3);
     expect(p_items[1]).toMatchObject({ mode: "name", text: "Fatma", font: null, color: "black", unit_price: apron.base_price, qty: 3, design_path: null });
-    expect(p_items[2]).toMatchObject({ mode: "design", design_path: UP, text: null, font: null });
+    expect(p_items[2]).toMatchObject({ mode: "name", text: "Ali", font: null, color: "black", unit_price: apron.base_price, qty: 1 });
     expect(p_items[0].product_id).toBe("00000000-0000-4000-8000-000000000001");
   });
 
@@ -123,7 +123,7 @@ describe("placeOrder", () => {
     const result = await place({
       lines: [
         std({ mode: "name", text: "Fatma", font: "ruqaa", qty: 2, discount_percent: 99, unit_price: 1 }),
-        std({ productId: "polka-dot-bag", unitPrice: 1 }),
+        std({ productId: "polka-dot-bag", mode: "standard", text: null, unitPrice: 1 }),
       ],
     });
     expect(result.ok).toBe(true);
@@ -152,12 +152,13 @@ describe("placeOrder", () => {
     expect((await place({ deposit_status: "confirmed", deposit_amount: 1, customizationNotes: "Make text smaller" })).ok).toBe(true);
     const saved = state.rpcCalls[0].args.p_order;
     expect(saved.deposit_status).toBe("submitted");
-    expect(saved.deposit_amount).toBe(Math.round(Number(saved.total) * 30) / 100);
+    expect(saved.deposit_percent).toBe(50);
+    expect(saved.deposit_amount).toBe(Math.round(Number(saved.total) * 50) / 100);
     expect(saved.customization_notes).toBe("Make text smaller");
   });
 
   it("keeps bags on normal checkout without a deposit or customization notes", async () => {
-    expect((await place({ lines: [std({ productId: "polka-dot-bag" })], paymentProofPath: undefined, depositMethod: undefined, customizationNotes: "ignore" })).ok).toBe(true);
+    expect((await place({ lines: [std({ productId: "polka-dot-bag", mode: "standard", text: null })], paymentProofPath: undefined, depositMethod: undefined, customizationNotes: "ignore" })).ok).toBe(true);
     expect(state.rpcCalls[0].args.p_order).toMatchObject({ deposit_amount: 0, deposit_status: null, payment_proof_path: null, customization_notes: null });
     expect(state.rpcCalls[0].args.p_items[0]).toMatchObject({ mode: "standard", color: null });
     expect((await place({ lines: [std({ productId: "polka-dot-bag", mode: "name", text: "Bag" })] })).ok).toBe(false);

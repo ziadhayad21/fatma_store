@@ -109,6 +109,8 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   const care_ar = txt(formData, "care_ar");
   const discountEnabled = formData.get("discount_enabled") === "on";
   const discount = discountEnabled ? parseMoney(formData.get("discount_percent"), 100) : null;
+  const depositPercentRaw = txt(formData, "deposit_percent");
+  const deposit_percent = depositPercentRaw ? int(depositPercentRaw) : 50;
   const sort = int(txt(formData, "sort") || "0");
   const is_active = formData.get("is_active") === "on";
   const is_diy = formData.get("is_diy") === "on";
@@ -126,6 +128,9 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
   if (description_ar.length > 4000 || details_ar.length > 4000 || care_ar.length > 4000) errors.description_ar = "النص طويل جدًا.";
   if (discountEnabled && (typeof discount !== "number" || !validDiscountPercent(discount))) {
     errors.discount_percent = "اكتب نسبة خصم أكبر من ٠ وأقل من ١٠٠.";
+  }
+  if (deposit_percent === null || deposit_percent < 1 || deposit_percent > 100) {
+    errors.deposit_percent = "نسبة العربون يجب أن تكون بين 1% و 100%.";
   }
   if (sort === null) errors.sort = "رقم غير صحيح.";
   if (!imgs.ok) errors.images = imgs.error;
@@ -197,6 +202,7 @@ export async function saveProduct(_prev: SaveState, formData: FormData): Promise
     care_ar,
     base_price: base as number,
     discount_percent: typeof discount === "number" ? discount : null,
+    deposit_percent: deposit_percent as number,
     images: imgs.ok ? imgs.images : [],
     is_active,
     is_diy,

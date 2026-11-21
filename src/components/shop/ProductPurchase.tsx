@@ -33,23 +33,23 @@ const WAYS: { id: OrderMode; title: string; sub: string }[] = [
  * `?edit=<cart line key>` (from the cart's "عدّل") opens this page pre-filled with that line;
  * saving writes the changes back to the same line instead of adding a new one.
  */
-export function ProductPurchase({ product }: { product: Product }) {
+export function ProductPurchase({ product, onSuccess }: { product: Product; onSuccess?: () => void }) {
   return (
-    <Suspense fallback={isCouples(product) ? <CouplesForm product={product} initial={null} /> : <PurchaseForm product={product} initial={null} />}>
-      <EditAware product={product} />
+    <Suspense fallback={isCouples(product) ? <CouplesForm product={product} initial={null} onSuccess={onSuccess} /> : <PurchaseForm product={product} initial={null} onSuccess={onSuccess} />}>
+      <EditAware product={product} onSuccess={onSuccess} />
     </Suspense>
   );
 }
 
-function EditAware({ product }: { product: Product }) {
+function EditAware({ product, onSuccess }: { product: Product; onSuccess?: () => void }) {
   const editKey = useSearchParams().get("edit");
   const line = useCart((s) => (editKey ? s.lines.find((l) => l.key === editKey && l.productId === product.slug) : undefined));
   // the key remounts the form when the cart line (re)hydrates from localStorage
-  if (isCouples(product)) return <CouplesForm key={line?.key ?? "new"} product={product} initial={line ?? null} />;
-  return <PurchaseForm key={line?.key ?? "new"} product={product} initial={line ?? null} />;
+  if (isCouples(product)) return <CouplesForm key={line?.key ?? "new"} product={product} initial={line ?? null} onSuccess={onSuccess} />;
+  return <PurchaseForm key={line?.key ?? "new"} product={product} initial={line ?? null} onSuccess={onSuccess} />;
 }
 
-function PurchaseForm({ product: p, initial }: { product: Product; initial: CartLine | null }) {
+function PurchaseForm({ product: p, initial, onSuccess }: { product: Product; initial: CartLine | null; onSuccess?: () => void }) {
   const router = useRouter();
   const editing = initial !== null;
   const rules = productRules(p);
@@ -60,11 +60,28 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
   const noColors = rules.colors && p.colors.length === 0;
   const lineColor = rules.colors ? color : null;
   // DIY products have no "as is" option: "ارفع تصميمك" is preselected
-  const defaultMode: OrderMode = rules.standard ? "standard" : "design";
-  const [mode, setMode] = useState<OrderMode>(
-    rules.customization && initial?.mode && (rules.standard || initial.mode !== "standard") ? initial.mode : rules.customization ? defaultMode : "standard",
-  );
-  const ways = rules.standard ? WAYS : WAYS.filter((w) => w.id !== "standard");
+  const isTextile = ["aprons", "towels"].includes(p.category_slug);
+  const isDiyTextile = isTextile && !!p.is_diy;
+  const isNormalTextile = isTextile && !p.is_diy;
+
+  const defaultMode: OrderMode = isNormalTextile ? "name" : isDiyTextile ? "design" : rules.standard ? "standard" : "design";
+  const [mode, setMode] = useState<OrderMode>(() => {
+    if (isNormalTextile) return "name";
+    if (isDiyTextile) return "design";
+    return rules.customization && initial?.mode && (rules.standard || initial.mode !== "standard")
+      ? initial.mode
+      : rules.customization
+        ? defaultMode
+        : "standard";
+  });
+
+  const ways = isNormalTextile
+    ? WAYS.filter((w) => w.id === "name")
+    : isDiyTextile
+      ? [{ id: "design" as OrderMode, title: "أضف تصميمك", sub: "لوجو، رسمة أو صورة" }]
+      : rules.standard
+        ? WAYS
+        : WAYS.filter((w) => w.id !== "standard");
   const [qty, setQty] = useState(initial?.qty ?? 1);
   const [name, setName] = useState(initial?.text ?? "");
   const [font, setFont] = useState<FontId>(initial?.font ?? "ruqaa");
@@ -107,9 +124,11 @@ function PurchaseForm({ product: p, initial }: { product: Product; initial: Cart
       if (initial.designPath && line.designPath !== initial.designPath && !designInUse(initial.designPath)) {
         void designUploader.remove(initial.designPath).catch(() => {});
       }
-      router.push("/cart");
+      if (onSuccess) onSuccess();
+      else router.push("/cart");
     } else {
       add(line);
+      if (onSuccess) onSuccess();
       openCart();
     }
   }
