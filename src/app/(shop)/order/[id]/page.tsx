@@ -38,6 +38,7 @@ type OrderRow = {
   address: string;
   notes: string | null;
   customization_notes: string | null;
+  place?: string | null;
   deposit_amount: number;
   deposit_percent?: number | null;
   deposit_status: DepositStatus | null;
@@ -188,7 +189,7 @@ async function OrderContent({ params }: PageProps<"/order/[id]">) {
         <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 24px", margin: "40px 0 0", fontSize: 15 }}>
           <dt className="muted">الاسم</dt><dd style={{ margin: 0 }}>{order.customer_name}</dd>
           <dt className="muted">الموبايل</dt><dd style={{ margin: 0 }} dir="ltr" lang="en" >{order.phone}</dd>
-          <dt className="muted">العنوان</dt><dd style={{ margin: 0 }}>{order.governorate} — {order.area} — {order.address}</dd>
+          <dt className="muted">العنوان</dt><dd style={{ margin: 0 }}>{order.governorate}{order.place ? ` (${order.place})` : ""} — {order.area} — {order.address}</dd>
           {order.customization_notes && <><dt className="muted">ملاحظات التخصيص (الفوط والمريلات)</dt><dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>{order.customization_notes}</dd></>}
           {order.notes && (<><dt className="muted">ملاحظات</dt><dd style={{ margin: 0 }}>{order.notes}</dd></>)}
           <dt className="muted">الدفع</dt><dd style={{ margin: 0 }}>{pay?.label ?? order.payment_method}</dd>

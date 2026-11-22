@@ -36,7 +36,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
   const { supabase } = await requireAdmin();
 
   const { data } = await supabase.from("orders")
-    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, files_purged_at, deposit_percent, order_items(*)")
+    .select("id, number, status, return_reason, created_at, customer_name, phone, governorate, area, address, notes, payment_method, subtotal, shipping, total, customization_notes, deposit_amount, deposit_status, deposit_method, payment_proof_path, files_purged_at, deposit_percent, place, order_items(*)")
     .eq("id", id)
     .maybeSingle();
   if (!data) notFound();
@@ -241,6 +241,7 @@ export default async function OrderDetail({ params }: PageProps<"/admin/orders/[
               <h2 id="od-delivery">التوصيل</h2>
               <dl className="adm-od-dl">
                 <dt>المحافظة</dt><dd>{data.governorate}</dd>
+                {data.place && <><dt>المنطقة / المكان</dt><dd>{data.place}</dd></>}
                 <dt>العنوان</dt><dd dir="auto">{[data.area, data.address].filter(Boolean).join("، ")}</dd>
                 {data.notes?.trim() && <><dt>ملاحظات</dt><dd dir="auto" className="adm-od-pre">{data.notes}</dd></>}
               </dl>

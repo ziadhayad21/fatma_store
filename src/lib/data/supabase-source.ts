@@ -202,8 +202,23 @@ export const supabaseSource: CatalogSource = {
   },
 
   async shippingRates(): Promise<ShippingRate[]> {
-    const { data, error } = await createPublicClient().from("shipping_rates").select("governorate, fee");
-    if (error) fail("shipping rates", error);
-    return (data ?? []).map((r) => ({ governorate: r.governorate as string, fee: r.fee === null ? null : Number(r.fee) }));
+    const sb = createPublicClient();
+    const [{ data: rates, error: ratesErr }, { data: places, error: placesErr }] = await Promise.all([
+      sb.from("shipping_rates").select("governorate, fee"),
+      sb.from("shipping_places").select("id, governorate, name, fee").order("name"),
+    ]);
+    if (ratesErr) fail("shipping rates", ratesErr);
+    const placesByGov = new Map<string, { id: string; governorate: string; name: string; fee: number }[]>();
+    for (const p of places ?? []) {
+      const g = p.governorate as string;
+      const list = placesByGov.get(g) ?? [];
+      list.push({ id: p.id as string, governorate: g, name: p.name as string, fee: Number(p.fee) });
+      placesByGov.set(g, list);
+    }
+    return (rates ?? []).map((r) => ({
+      governorate: r.governorate as string,
+      fee: r.fee === null ? null : Number(r.fee),
+      places: placesByGov.get(r.governorate as string) ?? [],
+    }));
   },
 };

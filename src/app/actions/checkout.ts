@@ -120,6 +120,16 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       governorate: customer.governorate,
       modules: activePricingModules({
         shippingFee: async (g) => {
+          if (customer.place) {
+            const { data: placeData, error: placeErr } = await sb
+              .from("shipping_places")
+              .select("fee")
+              .eq("governorate", g)
+              .eq("name", customer.place)
+              .maybeSingle();
+            if (placeErr) throw placeErr;
+            if (placeData?.fee !== null && placeData?.fee !== undefined) return Number(placeData.fee);
+          }
           const { data, error } = await sb.from("shipping_rates").select("fee").eq("governorate", g).maybeSingle();
           if (error) throw error;
           return data?.fee === null || data?.fee === undefined ? null : Number(data.fee);
@@ -171,6 +181,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       governorate: customer.governorate,
       area: customer.area,
       address: customer.address,
+      place: customer.place || null,
       notes: customer.notes,
       payment_method: input.paymentMethod,
       subtotal: priced.subtotal,

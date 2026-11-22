@@ -20,6 +20,7 @@ export type CustomerInput = {
   name: string;
   phone: string;
   governorate: string;
+  place?: string;
   area: string;
   address: string;
   notes: string;
@@ -34,6 +35,7 @@ export function cleanCustomer(raw: Partial<Record<keyof CustomerInput, unknown>>
     name: clean(raw.name),
     phone: normalizePhone(String(raw.phone ?? "")),
     governorate: clean(raw.governorate),
+    place: raw.place ? clean(raw.place) : undefined,
     area: clean(raw.area),
     address: clean(raw.address),
     notes: String(raw.notes ?? "").normalize("NFC").trim(),

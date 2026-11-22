@@ -1,6 +1,7 @@
 import type { Category, Product, ProductPage, ProductSort, PublicSuggestion, Review } from "@/lib/types";
 
-export type ShippingRate = { governorate: string; fee: number | null };
+export type ShippingPlace = { id: string; governorate: string; name: string; fee: number };
+export type ShippingRate = { governorate: string; fee: number | null; places?: ShippingPlace[] };
 
 /** Read side of the catalog. Implemented by the Supabase source and by the seed fallback. */
 export interface CatalogSource {

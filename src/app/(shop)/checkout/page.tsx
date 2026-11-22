@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
-import { getShippingRates } from "@/lib/catalog";
+import { source } from "@/lib/data/source";
 
 export const metadata: Metadata = { title: "إتمام الطلب", robots: { index: false } };
 
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "إتمام الطلب", robots: { in
 export const instant = false;
 
 export default async function CheckoutPage() {
-  const rates = await getShippingRates();
+  await connection();
+  const rates = await source.shippingRates();
   return <CheckoutForm rates={rates} />;
 }

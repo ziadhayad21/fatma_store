@@ -17,6 +17,7 @@ import type { ShippingRate } from "@/lib/data/types";
 import { formatPrice } from "@/lib/format";
 import { governorates } from "@/lib/governorates";
 import { defaultPaymentMethod, paymentMethods } from "@/lib/payments";
+import { CustomDropdown, type CustomSelectOption } from "./CustomDropdown";
 import { LineDetails, lineThumbPath } from "@/components/cart/LineDetails";
 import { lineDesignPaths } from "@/lib/couples";
 import { productPrice, roundMoney } from "@/lib/pricing/discount";
@@ -62,8 +63,22 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
   const waiting = !hydrated || (storedLines.length > 0 && !loaded);
   const itemsTotal = roundMoney(lines.reduce((a, l) => a + productPrice(products.get(l.productId)!, { color: l.color, qty: l.qty }).price, 0));
   const rate = rates.find((r) => r.governorate === form.governorate);
-  const shippingKnown = !!rate && rate.fee !== null;
-  const total = roundMoney(itemsTotal + (shippingKnown ? rate!.fee! : 0));
+  const places = rate?.places ?? [];
+  const hasPlaces = places.length > 0;
+  const generalAvailable = !!rate && rate.fee !== null;
+  const selectedPlace = hasPlaces && form.place ? places.find((p) => p.name === form.place) : null;
+
+  // Shipping fee resolution:
+  // 1. If form.place matches a configured place for form.governorate, use that place's fee.
+  // 2. Otherwise use the governorate's general fee.
+  const shippingFee: number | null = selectedPlace
+    ? selectedPlace.fee
+    : generalAvailable
+      ? rate!.fee
+      : null;
+
+  const shippingKnown = shippingFee !== null;
+  const total = roundMoney(itemsTotal + (shippingKnown ? shippingFee : 0));
   const depositLines = lines.filter((l) => productRules(products.get(l.productId)!).deposit);
   const requiresDeposit = depositLines.length > 0;
   const appliedDepositPercent = requiresDeposit
@@ -94,8 +109,12 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
     }
     if (requiresDeposit && (!proofPath || proofBusy)) { setFormError("ارفع صورة إثبات تحويل العربون قبل إرسال الطلب."); return; }
     start(async () => {
+      const submitCustomer: CustomerInput = {
+        ...customer,
+        place: form.place && form.place !== "__general__" ? form.place : undefined,
+      };
       const res = await placeOrder({
-        customer,
+        customer: submitCustomer,
         website,
         customizationNotes,
         depositMethod,
@@ -123,6 +142,45 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
       setFormError(res.error);
       if (res.fieldErrors) setErrors(res.fieldErrors);
     });
+  }
+
+  const dropdownOptions: CustomSelectOption[] = [];
+  for (const g of governorates) {
+    const r = rates.find((x) => x.governorate === g);
+    const plList = r?.places ?? [];
+    const generalOff = !r || r.fee === null;
+    const allOff = generalOff && plList.length === 0;
+
+    if (allOff) {
+      dropdownOptions.push({
+        value: g,
+        label: `${g} — الشحن غير متاح حاليًا`,
+        disabled: true,
+      });
+      continue;
+    }
+
+    if (plList.length > 0) {
+      for (const p of plList) {
+        dropdownOptions.push({
+          group: g,
+          value: `${g}::${p.name}`,
+          label: p.name,
+        });
+      }
+      if (!generalOff) {
+        dropdownOptions.push({
+          group: g,
+          value: g,
+          label: `باقي مناطق ${g}`,
+        });
+      }
+    } else {
+      dropdownOptions.push({
+        value: g,
+        label: g,
+      });
+    }
   }
 
   const isEmpty = !waiting && lines.length === 0;
@@ -206,25 +264,28 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
                 </div>
                 <div className="fld">
                   <label htmlFor={`${uid}-governorate`}>المحافظة</label>
-                  <select
-                    className="sel"
-                    autoComplete="address-level1"
-                    value={form.governorate}
-                    onChange={(e) => set("governorate")(e.target.value)}
-                    {...field("governorate")}
-                  >
-                    <option value="">اختار المحافظة</option>
-                    {governorates.map((g) => {
-                      const r = rates.find((x) => x.governorate === g);
-                      const off = !r || r.fee === null;
-                      return (
-                        <option key={g} value={g} disabled={off}>
-                          {g}
-                          {off ? " — الشحن غير متاح حاليًا" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <CustomDropdown
+                    id={`${uid}-governorate`}
+                    name="governorate"
+                    placeholder="اختار المحافظة"
+                    value={form.place ? `${form.governorate}::${form.place}` : form.governorate}
+                    options={dropdownOptions}
+                    hasError={!!err("governorate")}
+                    describedBy={err("governorate") ? `${uid}-governorate-e` : undefined}
+                    onChange={(val) => {
+                      if (!val) {
+                        setForm((prev) => ({ ...prev, governorate: "", place: undefined }));
+                        return;
+                      }
+                      if (val.includes("::")) {
+                        const [gov, pl] = val.split("::");
+                        setForm((prev) => ({ ...prev, governorate: gov, place: pl }));
+                      } else {
+                        setForm((prev) => ({ ...prev, governorate: val, place: undefined }));
+                      }
+                      if (errors.governorate) setErrors((errs) => ({ ...errs, governorate: undefined }));
+                    }}
+                  />
                   {fieldErr("governorate")}
                 </div>
                 <div className="fld">
@@ -289,7 +350,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
               {lines.map((l) => {
                 const p = products.get(l.productId)!;
                 const thumbPath = lineThumbPath(l);
-              const thumb = thumbPath ? designUrls[thumbPath] : undefined;
+                const thumb = thumbPath ? designUrls[thumbPath] : undefined;
                 return (
                   <div className="sum-line" key={l.key}>
                     {thumb ? (
@@ -312,7 +373,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
             <div className="sl">
               <span className="muted">الشحن</span>
               {shippingKnown ? (
-                <span className="price">{formatPrice(rate!.fee!)}</span>
+                <span className="price">{formatPrice(shippingFee!)}</span>
               ) : (
                 <span style={{ fontSize: 14 }}>{shippingBlocked ? "غير متاح حاليًا" : "اختار المحافظة"}</span>
               )}

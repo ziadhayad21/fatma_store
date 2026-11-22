@@ -137,6 +137,6 @@ export const seedSource: CatalogSource = {
 
   async shippingRates(): Promise<ShippingRate[]> {
     // seed mode: fees unset, exactly like the production seed
-    return governorates.map((g) => ({ governorate: g, fee: null }));
+    return governorates.map((g) => ({ governorate: g, fee: null, places: [] }));
   },
 };

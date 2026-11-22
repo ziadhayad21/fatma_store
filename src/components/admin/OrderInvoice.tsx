@@ -30,6 +30,7 @@ type InvoiceOrder = {
   customer_name: string;
   phone: string;
   governorate: string;
+  place?: string | null;
   area: string;
   address: string;
   customization_notes?: string | null;
@@ -77,7 +78,7 @@ export function OrderInvoice({ order, items }: { order: InvoiceOrder; items: Inv
         <dl>
           <dt>الاسم</dt><dd>{order.customer_name}</dd>
           <dt>الموبايل</dt><dd><bdi dir="ltr">{order.phone}</bdi></dd>
-          <dt>المحافظة</dt><dd>{order.governorate}</dd>
+          <dt>المحافظة</dt><dd>{order.governorate}{order.place ? ` (${order.place})` : ""}</dd>
           <dt>العنوان</dt><dd className="invoice-address" dir="auto">{[order.area, order.address].filter(Boolean).join("، ")}</dd>
         </dl>
       </section>

@@ -1341,6 +1341,223 @@
   background: #FFFBFB;
 }
 
+/* New Shipping Places Cards */
+.adm-ship-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.adm-ship-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(23, 35, 61, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+.adm-ship-card.unset {
+  border-color: #FECACA;
+  background: #FFFBFB;
+}
+.adm-ship-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.adm-ship-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.adm-ship-card-gov {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0F172A;
+}
+.adm-ship-badge {
+  font-size: 11px;
+  background: #EEF2F6;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.adm-ship-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.adm-ship-btn-add:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+.adm-ship-card-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed #E2E8F0;
+}
+.adm-ship-label {
+  font-size: 13px;
+  color: #64748B;
+}
+.adm-ship-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adm-ship-input-wrap input {
+  width: 90px;
+  height: 36px;
+  text-align: center;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.adm-ship-places-list {
+  background: #F8FAFC;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.adm-ship-places-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  margin-bottom: 8px;
+}
+.adm-ship-places-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adm-ship-place-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.adm-ship-place-name {
+  font-weight: 500;
+  color: #1E293B;
+  flex: 1;
+}
+.adm-ship-place-fee {
+  font-weight: 600;
+  color: #0F172A;
+}
+.adm-ship-place-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.adm-ship-action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #64748B;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.adm-ship-action-btn:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+.adm-ship-action-btn.delete:hover {
+  background: #FEE2E2;
+  color: #EF4444;
+}
+
+/* Modals */
+.adm-ship-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 16px;
+}
+.adm-ship-modal {
+  background: #FFFFFF;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: op-in 0.2s ease both;
+}
+.adm-ship-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E2E8F0;
+}
+.adm-ship-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0F172A;
+}
+.adm-ship-modal-close {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #64748B;
+  border-radius: 6px;
+}
+.adm-ship-modal-close:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+.adm-ship-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.adm-ship-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+}
+
 /* Responsive Media Queries */
 @media (max-width: 1200px) {
   .adm-stats {
