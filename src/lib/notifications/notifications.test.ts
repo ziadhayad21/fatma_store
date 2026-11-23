@@ -3,7 +3,7 @@ import { onOrderPlaced, runNotifiers, type Notifier, type PlacedOrder } from "./
 
 const order: PlacedOrder = {
   id: "o1", number: 1001, customerName: "س", phone: "01012345678", governorate: "القاهرة", area: "م", address: "ش",
-  notes: "", paymentMethod: "cod", subtotal: 100, shipping: 50, total: 150, items: [],
+  notes: "", depositAmount: 0, paymentMethod: "cod", subtotal: 100, shipping: 50, total: 150, items: [],
 };
 
 describe("order placed hook", () => {

@@ -1,4 +1,5 @@
 import "server-only";
+import { emailNotifier } from "./email";
 
 /**
  * Notification hook. Intentionally a no-op today: order notifications (email / WhatsApp / SMS) are a
@@ -14,9 +15,15 @@ export type PlacedOrder = {
   customerName: string;
   phone: string;
   governorate: string;
+  place?: string;
   area: string;
   address: string;
   notes: string;
+  customizationNotes?: string | null;
+  depositAmount: number;
+  depositPercent?: number | null;
+  depositMethod?: string | null;
+  paymentProofPath?: string | null;
   paymentMethod: string;
   subtotal: number;
   shipping: number;
@@ -26,6 +33,13 @@ export type PlacedOrder = {
     mode: "standard" | "name" | "design";
     text: string | null;
     font: string | null;
+    colorName?: string | null;
+    pieces?: {
+      label: string;
+      colorName?: string | null;
+      text?: string | null;
+      designName?: string | null;
+    }[] | null;
     qty: number;
     unitPrice: number;
   }[];
@@ -34,9 +48,9 @@ export type PlacedOrder = {
 export type Notifier = { name: string; send: (order: PlacedOrder) => Promise<void> };
 
 /** Register email / WhatsApp / SMS notifiers here. */
-const notifiers: Notifier[] = [];
+const notifiers: Notifier[] = [emailNotifier];
 
-const TIMEOUT_MS = 3000;
+const TIMEOUT_MS = 10000;
 
 /** Runs every notifier in isolation; exported so the guarantees can be tested with fake notifiers. */
 export async function runNotifiers(list: Notifier[], order: PlacedOrder, timeoutMs = TIMEOUT_MS): Promise<void> {

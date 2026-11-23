@@ -172,7 +172,7 @@ export function CheckoutForm({ rates }: { rates: ShippingRate[] }) {
         dropdownOptions.push({
           group: g,
           value: g,
-          label: `باقي مناطق ${g}`,
+          label: `${g} (باقي المناطق)`,
         });
       }
     } else {

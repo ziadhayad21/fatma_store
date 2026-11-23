@@ -202,24 +202,24 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       // Its font lives in the pieces (the colour rules keep the item's own font empty).
       ...(l.pieces
         ? {
-            text: l.mode === "name" ? l.pieces[0].text : null,
-            font: null,
-            design_path: l.mode === "design" ? l.pieces[0].designPath : null,
-            pieces: l.pieces.map((p): StoredPiece => ({
-              label: p.label,
-              color: p.color,
-              color_name: p.colorName,
-              text: l.mode === "name" ? p.text : null,
-              font: l.mode === "name" ? l.font : null,
-              design_path: l.mode === "design" ? p.designPath : null,
-              design_name: l.mode === "design" ? p.designName : null,
-            })),
-          }
-        : {
-            text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
+          text: l.mode === "name" ? l.pieces[0].text : null,
+          font: null,
+          design_path: l.mode === "design" ? l.pieces[0].designPath : null,
+          pieces: l.pieces.map((p): StoredPiece => ({
+            label: p.label,
+            color: p.color,
+            color_name: p.colorName,
+            text: l.mode === "name" ? p.text : null,
             font: l.mode === "name" ? l.font : null,
-            design_path: l.mode === "design" ? l.designPath : null,
-          }),
+            design_path: l.mode === "design" ? p.designPath : null,
+            design_name: l.mode === "design" ? p.designName : null,
+          })),
+        }
+        : {
+          text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
+          font: l.mode === "name" ? l.font : null,
+          design_path: l.mode === "design" ? l.designPath : null,
+        }),
       color: l.color ?? null,
       unit_price: l.unitPrice,
       original_unit_price: l.originalUnitPrice,
@@ -241,9 +241,15 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       customerName: customer.name,
       phone: customer.phone,
       governorate: customer.governorate,
+      place: customer.place || undefined,
       area: customer.area,
       address: customer.address,
       notes: customer.notes ?? "",
+      customizationNotes,
+      depositAmount: requiresDeposit ? depositAmount(priced.total, appliedDepositPercent) : 0,
+      depositPercent: requiresDeposit ? appliedDepositPercent : null,
+      depositMethod: requiresDeposit ? String(input.depositMethod ?? "") : null,
+      paymentProofPath: proofPath,
       paymentMethod: String(input.paymentMethod),
       subtotal: priced.subtotal,
       shipping: priced.shipping,
@@ -253,6 +259,15 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
         mode: l.mode,
         text: l.mode === "name" ? normalizeName(l.text ?? "") : null,
         font: l.mode === "name" ? (l.font ?? null) : null,
+        colorName: l.color ? (products.get(l.productId)?.colors.find((c) => c.name_ar === l.color || c.id === l.color)?.name_ar ?? l.color) : null,
+        pieces: l.pieces
+          ? l.pieces.map((p) => ({
+            label: p.label,
+            colorName: p.colorName,
+            text: l.mode === "name" ? p.text : null,
+            designName: l.mode === "design" ? p.designName : null,
+          }))
+          : null,
         qty: Math.min(l.qty, MAX_QTY),
         unitPrice: l.unitPrice,
       })),
