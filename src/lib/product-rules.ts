@@ -11,8 +11,8 @@ const LEGACY_COLOR_NAME: Record<string, string> = { black: "أسود", white: "�
 export const colorLabel = (item: { color?: string | null; color_name?: string | null }) =>
   item.color_name || (item.color ? LEGACY_COLOR_NAME[item.color] ?? item.color : null);
 
-export function productRules(product: Pick<Product, "category_slug"> & { has_colors?: boolean; is_diy?: boolean; pieces_count?: number | null }) {
-  const textile = ["aprons", "towels"].includes(product.category_slug);
+export function productRules(product: Pick<Product, "category_slug"> & { has_colors?: boolean; is_diy?: boolean; pieces_count?: number | null; category_requires_deposit?: boolean }) {
+  const textile = !!product.category_requires_deposit || ["aprons", "towels"].includes(product.category_slug);
   const colors = !!product.has_colors;
   const customization = product.category_slug !== "bags";
   const couples = (product.pieces_count ?? 1) > 1;

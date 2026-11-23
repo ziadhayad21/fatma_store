@@ -18,6 +18,8 @@ export type CategoryFormValues = {
   has_colors: boolean;
   /** products in this category may be "كابلز" (two pieces, one fixed price) */
   allows_couples: boolean;
+  /** when true, all products in this category require a deposit at checkout */
+  requires_deposit: boolean;
   image: ProductImage[];
 };
 
@@ -77,6 +79,13 @@ export function CategoryForm({ values: v }: { values: CategoryFormValues }) {
           يسمح بمنتجات كابلز
         </label>
         <span className="adm-hint" id="allows-couples-hint">لما يكون مفعّل، تقدر تعمل في القسم ده منتج كابلز: قطعتين في منتج واحد بسعر ثابت.</span>
+      </div>
+      <div className="adm-f">
+        <label className="adm-check">
+          <input type="checkbox" role="switch" name="requires_deposit" defaultChecked={v.requires_deposit} aria-describedby="requires-deposit-hint" />
+          عربون إجباري على هذا القسم
+        </label>
+        <span className="adm-hint" id="requires-deposit-hint">لما يكون مفعّل، كل المنتجات في القسم ده بتتطلب عربون من العميل وقت الطلب.</span>
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button className="adm-btn" type="submit" disabled={pending}>{pending ? "جاري الحفظ…" : "حفظ"}</button>

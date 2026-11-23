@@ -254,6 +254,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
   const is_active = formData.get("is_active") === "on";
   const has_colors = formData.get("has_colors") === "on";
   const allows_couples = formData.get("allows_couples") === "on";
+  const requires_deposit = formData.get("requires_deposit") === "on";
   const imgs = parseImages(formData.get("images"), publicEnv.supabaseUrl);
 
   if (name_ar.length < 1 || name_ar.length > 80) errors.name_ar = "اكتب اسم القسم (حتى 80 حرف).";
@@ -276,6 +277,7 @@ export async function saveCategory(_prev: SaveState, formData: FormData): Promis
     is_active,
     has_colors,
     allows_couples,
+    requires_deposit,
   };
   let hadColors = false;
   if (!isNew) {

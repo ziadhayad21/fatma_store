@@ -23,6 +23,7 @@ export default async function CategoryEdit({ params, searchParams }: PageProps<"
     is_active: true,
     has_colors: false,
     allows_couples: false,
+    requires_deposit: false,
     image: [],
   };
   if (!isNew) {
@@ -38,6 +39,7 @@ export default async function CategoryEdit({ params, searchParams }: PageProps<"
       is_active: c.is_active,
       has_colors: !!c.has_colors,
       allows_couples: !!c.allows_couples,
+      requires_deposit: !!c.requires_deposit,
       image: c.image ? [{ src: c.image, alt: c.image_alt, position: c.image_position }] : [],
     };
   }

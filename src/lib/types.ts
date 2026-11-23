@@ -19,6 +19,8 @@ export type Category = {
   accent_color: string;
   /** products in this category are sold per colour (price per colour in product_colors) */
   has_colors?: boolean;
+  /** when true, every product in this category requires a deposit (عربون) at checkout */
+  requires_deposit?: boolean;
 };
 
 /** A colour a product is sold in (public.colors joined with its price in public.product_colors). */
@@ -69,6 +71,8 @@ export type Product = ProductRow & {
   has_colors: boolean;
   /** available colours, in display order (empty when has_colors is false) */
   colors: ColorOption[];
+  /** inherited from the category: when true the deposit flow is mandatory at checkout */
+  category_requires_deposit?: boolean;
 };
 
 export type ProductSort = "new" | "low" | "high";

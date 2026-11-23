@@ -13,14 +13,14 @@ export type JoinedRow = Omit<ProductRow, "base_price" | "discount_percent" | "de
   discount_percent?: number | string | null;
   deposit_percent?: number | string | null;
   images: ProductImage[] | null;
-  category: { slug: string; name_ar: string; is_active: boolean; has_colors?: boolean | null } | null;
+  category: { slug: string; name_ar: string; is_active: boolean; has_colors?: boolean | null; requires_deposit?: boolean | null } | null;
   product_colors?: JoinedColor[] | null;
   /** legacy column (always 0 since the printing fee was removed); never read */
   personalization_fee?: unknown;
 };
 
 export const PRODUCT_SELECT =
-  "*, category:categories!inner(slug, name_ar, is_active, has_colors), product_colors(price, is_available, color:colors(id, name_ar, hex, sort, is_active))";
+  "*, category:categories!inner(slug, name_ar, is_active, has_colors, requires_deposit), product_colors(price, is_available, color:colors(id, name_ar, hex, sort, is_active))";
 
 /** Available, active colours in display order. */
 function toColors(rows: JoinedColor[] | null | undefined): ColorOption[] {
@@ -44,6 +44,7 @@ export function toProduct(r: JoinedRow): Product {
     category_name: category?.name_ar ?? "",
     has_colors,
     colors: has_colors ? toColors(product_colors) : [],
+    category_requires_deposit: !!category?.requires_deposit,
   };
 }
 
